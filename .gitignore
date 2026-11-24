@@ -2,3 +2,10 @@
 /.vs/
 /out/
 *.user
+
+# Android port
+/android/.gradle/
+/android/**/build/
+/android/local.properties
+*.iml
+.cxx/
