@@ -1,9 +1,20 @@
 cmake_minimum_required(VERSION 3.20)
-project(mugen_unleashed VERSION 1.1.0 LANGUAGES C RC)
+project(mugen_unleashed VERSION 1.1.0 LANGUAGES C)
 
-# mugen.exe is a 32-bit MSVC 2008 binary; everything here targets Win32/x86.
-if(NOT MSVC OR NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
-  message(FATAL_ERROR "Build with MSVC for x86 (32-bit), e.g. tools\\msvc_env.bat cmake --preset x86-release")
+# Two targets: the Windows reference build and the Android port (docs/android-port).
+#  - Windows: mugen.exe is a 32-bit MSVC 2008 binary; everything there targets Win32/x86.
+#  - Android: only through the NDK toolchain, arm64-v8a only (decision D-001), see cmake/MugenAndroid.cmake.
+if(ANDROID)
+  set(MUGEN_PLATFORM_ANDROID ON)
+  if(NOT ANDROID_ABI STREQUAL "arm64-v8a")
+    message(FATAL_ERROR "The Android port supports arm64-v8a only (D-001); got ANDROID_ABI='${ANDROID_ABI}'")
+  endif()
+elseif(NOT MSVC OR NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
+  message(FATAL_ERROR "Build with MSVC for x86 (32-bit), e.g. tools\\msvc_env.bat cmake --preset x86-release\n"
+                      "or, for Android, with the NDK toolchain: cmake --preset android-arm64-debug")
+endif()
+if(MSVC)
+  enable_language(RC)
 endif()
 
 set(MUGEN_GAME_DIR "" CACHE PATH
@@ -13,6 +24,11 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+if(MUGEN_PLATFORM_ANDROID)
+  include(MugenAndroid)   # third-party libraries + libmugen.so, replaces everything below
+  return()
+endif()
 
 include(MugenSdk)
 include(ThirdParty)

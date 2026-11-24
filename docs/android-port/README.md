@@ -24,7 +24,7 @@ Depois do port, haverá uma segunda etapa de **alterações/novos recursos** (fa
 | Fase | Nome | Estado | Branch / commit | Última conta/conversa | Observações |
 |---|---|---|---|---|---|
 | P0 | Fundação e decisões | EM ANDAMENTO | — | — | docs criados; D-001 e D-010 decididas (arm64 nativo; A06 5G; software→GLES→Vulkan); D-002..D-006 pendentes |
-| P1 | Build Android (NDK/CMake/Gradle/CI) | não iniciada | — | — | |
+| P1 | Build Android (NDK/CMake/Gradle/CI) | EM ANDAMENTO | `android/p1-build` (local; push pendente) | conversa P1 #1 | código escrito, **não validado** (sem NDK nem CI na conversa); falta: rodar o CI e o APK no A06 5G; ver LOG.md |
 | P2 | Portabilidade do código (64 bits, Win32, `__stdcall`) | não iniciada | — | — | |
 | P3 | Camada de plataforma (janela, eventos, tempo, arquivos) | não iniciada | — | — | |
 | P4 | Áudio e BGM | não iniciada | — | — | |
