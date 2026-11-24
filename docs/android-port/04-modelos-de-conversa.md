@@ -48,3 +48,14 @@ Arquivos que a PRÓXIMA conversa precisa receber: <lista, só o necessário>
 - Um fato, um lugar: decisões em `03`, estado em `README.md`, histórico em `LOG.md`, mapa técnico em `01`.
 - Não registre informação que só existe no chat (comandos, versões, caminhos de SDK/NDK usados).
 - Se uma fase mudar de escopo, edite `02-fases.md` e deixe uma linha no `LOG.md` explicando por quê.
+
+## 5. Conversa coordenadora (papel fixo)
+Existe uma conversa **coordenadora** (a primeira do projeto, ou a que a substituir). Ela não implementa; ela:
+1. entrega a tarefa de cada fase (objetivo, tarefas, arquivos a levar, prompt de abertura pronto);
+2. recebe de volta o bloco de handoff + branch/commit e **verifica no repo** (diff, build, validação descrita) antes de aprovar;
+3. marca a fase como `CONCLUÍDA` (quadro do `README.md` + `LOG.md`) e entrega a próxima;
+4. mantém `03-decisoes.md` e `02-fases.md` coerentes (divide/une fases quando o escopo mudar).
+
+Ciclo: coordenadora → tarefa → conversa de fase (branch `android/p<n>-<tema>`) → handoff → coordenadora verifica → próxima tarefa.
+Se a coordenadora for perdida ou trocada: abrir conversa nova, anexar `README.md`, `03-decisoes.md`, `LOG.md` e dizer
+"você é a conversa coordenadora deste projeto"; ela reconstrói o estado pelo quadro e pelo `git log` das branches `android/*`.
