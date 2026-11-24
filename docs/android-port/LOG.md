@@ -2,6 +2,11 @@
 
 Uma entrada por conversa (modelo em 04-modelos-de-conversa.md). Mais recente no topo.
 
+### 2026-11-24 · P1 · fechamento pela coordenadora
+P1 **CONCLUÍDA**. Verificado: CI Android (`assembleDebug`, arm64) verde; `Build` Windows verde no PR; APK instalado e executado no aparelho de teste, relatório em D-010.
+Pendente menor (não bloqueia): o app de diagnóstico não mostra o botão "Copy report" no aparelho (o texto aparece e dá para copiar manualmente); corrigir quando mexer no app.
+Próxima: P2 — Portabilidade do código. Levar: `src/mugen.h`, `src/game.h`, `src/ftol.h` e a lista de structs com `MUGEN_ASSERT_SIZE`.
+
 ### 2026-11-24 · P1 — Build Android · conta (dono do repo) · conversa 1
 Estado da fase: EM ANDAMENTO (código escrito; **não validado** no CI nem no aparelho)
 Branch/commit: android/p1-build @ e2b42f4 (código) — o commit seguinte só adiciona esta entrada do LOG. **Push não feito** (ver abaixo).

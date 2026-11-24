@@ -73,3 +73,23 @@ conservadora, escala feita pela GPU) e medir FPS/tempo de frame antes de seguir 
    Risco baixo (API estável); revisar se algum comportamento de `inflate` divergir nos testes diferenciais.
 4. **libpng:** `PNG_NO_ASSEMBLER_CODE`/`PNG_NO_MMX_CODE` como definições PUBLIC (o MMX do 1.2.x é só x86; PUBLIC para o `png_struct` do engine bater com o da lib).
 5. **Flags:** `-ffp-contract=off` no alvo `mugen` (R2; nunca `-ffast-math`), `-Wl,-z,max-page-size=16384` (páginas de 16 KB), `ANDROID_STL=none` (só C).
+
+### D-010 · Relatório do aparelho de teste (colado pelo dono em 2026-11-24, app de diagnóstico da P1)
+| Item | Valor |
+|---|---|
+| Modelo | Samsung **SM-A065M** ("a06"), SoC MediaTek **MT6769V/CZ** |
+| Android | 16 (API 36) |
+| ABI | `arm64-v8a` (também aceita `armeabi-v7a`, `armeabi`); `libmugen.so` com ponteiros de 64 bits |
+| RAM | total 3633 MB; **livre no momento ~1047 MB** → orçamento de memória apertado |
+| Tela | 720x1600, 300 dpi, **60 Hz** |
+| GPU | ARM **Mali-G52 MC2**, driver OpenGL ES **3.2** (`reqGlEsVersion` 0x30002) |
+| GL | `GL_MAX_TEXTURE_SIZE` 16383; tem `GL_EXT_texture_format_BGRA8888`, `GL_EXT_texture_rg`, `GL_EXT_color_buffer_float`, `GL_EXT_buffer_storage`, `GL_ARM_shader_framebuffer_fetch`, ASTC; **sem textura 1D** (como todo ES) |
+| Vulkan (feature do sistema) | `vulkan.version` 0x403000 (= 1.3.0 declarado pelo sistema), `vulkan.level` 1, `vulkan.compute` 0 |
+| Libs no `libmugen.so` | Lua 5.1.4, libpng 1.2.38, zlib 1.3.0.1-motley |
+
+**Observações / consequências:**
+- O relatório diz **SM-A065M**. Pelo que sei (de memória, não verificado), esse código é o Galaxy A06 **4G** (Helio G85 / Mali-G52); o A06 **5G** teria outro SoC e outro código de modelo. O aparelho real de teste é, portanto, o do relatório; a referência de desempenho passa a ser **este aparelho** (SM-A065M).
+- GLES 3.2 está disponível: D-007 pode assumir GLES 3.0 como mínimo, com 2.0 só se necessário.
+- Vulkan: o sistema declara 1.3, mas a versão real do driver do Mali-G52 e as extensões ainda não foram lidas (fica para a P8 ou antes). `vulkan.compute` = 0 → **não depender de compute shaders** no backend Vulkan.
+- 60 Hz casa com o tick de 60 fps do engine; sem necessidade de pacing para taxas altas.
+- ~1 GB de RAM livre: caches de sprites/texturas e o buffer do renderer software precisam de limite de memória desde a P5.
