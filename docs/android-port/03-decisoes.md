@@ -44,7 +44,8 @@ CMake 3.22.1 (do SDK), AGP 8.7.3, Gradle 8.9, Kotlin 2.0.21, JDK 17. **A revisar
 (C) `Android/data/<pkg>/files` (pasta específica do app; usuário copia os arquivos).
 **Recomendação provisória:** C como primeiro passo (P3), A como UX final (P11).
 **Decisão final:** **(C) agora, (A) na P11; (B) descartada** (`fopen` não funciona sobre SAF). O app chama `getExternalFilesDir(null)` (`/sdcard/Android/data/io.github.thalyson42.mugen/files`, sem permissão em nenhuma versão; cai em `filesDir` se não houver armazenamento externo) e passa o caminho ao nativo (`Native.initPlatform`). `Mugen_SetDataDir` faz `chdir` nele: os caminhos relativos do engine (`data/mugen.cfg`, `chars/...`) e o `mugen.log` ficam ali, como no Windows. O jogo é copiado **direto** nessa pasta (`data`, `chars`, `stages`, `sound`, `font` na raiz dela), por exemplo `adb push <pasta do M.U.G.E.N>/. /sdcard/Android/data/io.github.thalyson42.mugen/files/`. O app de diagnóstico mostra o caminho.
-**Risco, não verificado no A065M (Android 16):** a partir do Android 11 apps de terceiros não navegam em `Android/data`; pelo cabo (MTP/adb) funciona, e o gerenciador de arquivos da Samsung costuma conseguir. A cópia via SAF da P11 resolve isso para o usuário final.
+**Verificado no A065M (Android 16):** o app lê e grava nessa pasta sem permissão, e o jogo copiado por `adb push` é achado. O armazenamento emulado **ignora a caixa** por conta própria (o resolvedor só age em sistemas de arquivos case-sensitive, como `filesDir`).
+**Risco, não verificado:** a partir do Android 11 apps de terceiros não navegam em `Android/data`; pelo cabo (MTP/adb) funciona, e o gerenciador de arquivos da Samsung costuma conseguir. A cópia via SAF da P11 resolve isso para o usuário final.
 
 ## D-006 · Licenças e linkagem — ABERTA
 Várias bibliotecas são LGPL (SDL 1.2/mixer, mpg123, pthreads-win32 só no Windows). Em Android tudo é `.so` ou estático:

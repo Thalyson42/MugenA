@@ -54,7 +54,7 @@ class MainActivity : Activity() {
         }
         if (platformReady) {
             thread(name = "p3a-selftest") {
-                val result = try { Native.platformSelfTest() } catch (e: Throwable) { "P3a self-test crashed: $e" }
+                val result = try { Native.platformSelfTest(cacheDir.absolutePath) } catch (e: Throwable) { "P3a self-test crashed: $e" }
                 runOnUiThread {
                     platformInfo = result
                     refresh()

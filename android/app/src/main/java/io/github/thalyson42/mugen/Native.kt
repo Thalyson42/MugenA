@@ -28,9 +28,13 @@ object Native {
     @JvmStatic
     external fun initPlatform(dataDir: String): Boolean
 
-    /** Runs the P3a self-test of the platform layer; returns its report. Takes about 3 s: call it off the UI thread. */
+    /**
+     * Runs the P3a self-test of the platform layer; returns its report. [altDir] is a case-sensitive folder (the app's
+     * cache) for the path-resolution checks, because the emulated external storage ignores case itself.
+     * Takes about 3 s: call it off the UI thread.
+     */
     @JvmStatic
-    external fun platformSelfTest(): String
+    external fun platformSelfTest(altDir: String): String
 
     /** Raises the engine's error screen with a sample text. Call it off the UI thread: it waits for the dialog. */
     @JvmStatic

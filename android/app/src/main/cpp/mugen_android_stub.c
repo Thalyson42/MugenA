@@ -15,7 +15,7 @@
 
 #define TAG "mugen"
 
-extern int P3a_SelfTest(char *report, size_t cap);
+extern int P3a_SelfTest(char *report, size_t cap, const char *altDir);
 
 static JavaVM *g_vm;
 static jclass g_nativeClass;        /* global reference to io.github.thalyson42.mugen.Native */
@@ -127,13 +127,17 @@ Java_io_github_thalyson42_mugen_Native_initPlatform(JNIEnv *env, jclass cls, jst
 }
 
 JNIEXPORT jstring JNICALL
-Java_io_github_thalyson42_mugen_Native_platformSelfTest(JNIEnv *env, jclass cls)
+Java_io_github_thalyson42_mugen_Native_platformSelfTest(JNIEnv *env, jclass cls, jstring altDir)
 {
     static char report[16384];
     char safe[sizeof report];
+    const char *alt = altDir != NULL ? (*env)->GetStringUTFChars(env, altDir, NULL) : NULL;
     (void)cls;
 
-    P3a_SelfTest(report, sizeof report);
+    P3a_SelfTest(report, sizeof report, alt);
+    if (alt != NULL) {
+        (*env)->ReleaseStringUTFChars(env, altDir, alt);
+    }
     SanitizeUtf8(report, safe, sizeof safe);   /* file names of the game folder may not be UTF-8 */
     return (*env)->NewStringUTF(env, safe);
 }

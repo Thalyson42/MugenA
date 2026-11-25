@@ -3,7 +3,7 @@
  * layer and the real engine files timer.c, log.c and file.c inside libmugen.so (compiled with the engine flags,
  * -fsigned-char included) and returns a text report to paste into docs/android-port/LOG.md.
  *
- * Everything it creates lives in <data dir>/.p3a-selftest and is removed afterwards, except mugen.log, which is
+ * Everything it creates lives in .p3a-selftest (in the data directory and in the app's cache directory) and is removed afterwards, except mugen.log, which is
  * written by the real Log_Init in the data directory: that file is the "mugen.log in the defined directory" of P3a.
  */
 #include "platform/platform.h"
@@ -107,51 +107,84 @@ static void GameFile(const char *ref)
     Say("  %-22s -> %s", ref, r == 1 ? out : "not found");
 }
 
-static void Paths(void)
+/* True when the file system under base ignores case (the emulated external storage, /storage/emulated/0, does). */
+static int CaseInsensitiveFs(const char *base)
 {
-    char out[512];
+    char a[1100], b[1100];
+    int ci;
+
+    snprintf(a, sizeof(a), "%s/.p3a-ci-Probe", base);
+    snprintf(b, sizeof(b), "%s/.p3a-CI-probe", base);
+    Touch(a);
+    ci = Exists(b);
+    unlink(a);
+    return ci;
+}
+
+/*
+ * Resolver checks inside <base>/.p3a-selftest. On a case-sensitive file system the corrected spelling is checked
+ * exactly; on a case-insensitive one the OS already finds every spelling, so only "found" is checked.
+ */
+static void Paths(const char *base)
+{
+    char root[1000], p[1100], q[1100], out[1100], want[1100];
+    int ci = CaseInsensitiveFs(base);
     FILE *f;
     MugenPathStats st;
 
-    mkdir(".p3a-selftest", 0755);
-    mkdir(".p3a-selftest/Data", 0755);
-    mkdir(".p3a-selftest/Data/Sprites", 0755);
-    mkdir(".p3a-selftest/Chars", 0755);
-    mkdir(".p3a-selftest/Sound", 0755);
-    Touch(".p3a-selftest/Data/Sprites/Kfm.SFF");
-    Touch(".p3a-selftest/Chars/kfm.DEF");
+    Mugen_PathCacheClear();
+    snprintf(root, sizeof(root), "%s/.p3a-selftest", base);
+    Say("  on: %s (%s file system)", base, ci ? "case-INSENSITIVE" : "case-sensitive");
+#define MK(rel) (snprintf(p, sizeof(p), "%s/" rel, root), p)
+    mkdir(root, 0755);
+    mkdir(MK("Data"), 0755);
+    mkdir(MK("Data/Sprites"), 0755);
+    mkdir(MK("Chars"), 0755);
+    mkdir(MK("Sound"), 0755);
+    Touch(MK("Data/Sprites/Kfm.SFF"));
+    Touch(MK("Chars/kfm.DEF"));
 
-    Check(Mugen_ResolvePath(".p3a-selftest\\data\\SPRITES\\kfm.sff", out, sizeof(out)) == 1 &&
-          strcmp(out, ".p3a-selftest/Data/Sprites/Kfm.SFF") == 0, "'\\' and case: .p3a-selftest\\data\\SPRITES\\kfm.sff");
-    f = fopen(".P3A-SELFTEST\\DATA\\sprites\\KFM.SFF", "rb");
+    snprintf(q, sizeof(q), "%s\\data\\SPRITES\\kfm.sff", root);       /* '\' after the root, case wrong */
+    snprintf(want, sizeof(want), "%s/Data/Sprites/Kfm.SFF", root);
+    Check(Mugen_ResolvePath(q, out, sizeof(out)) == 1 && (ci || strcmp(out, want) == 0), "'\\' and case resolved");
+    snprintf(q, sizeof(q), "%s\\DATA\\sprites\\KFM.SFF", root);
+    f = fopen(q, "rb");
     Check(f != NULL, "fopen with another case in every component");
     if (f != NULL) {
         fclose(f);
     }
-    Check(fopen(".p3a-selftest/data/sprites/nothing.sff", "rb") == NULL, "missing file stays missing");
-    Check(File_Find(".p3a-selftest\\CHARS\\KFM.def", out, NULL, "") == 1, "File_Find (file.c) ignores case");
-    Check(File_Exists(".p3a-selftest/Chars/KFM.DEF"), "File_Exists (file.c)");
+    snprintf(q, sizeof(q), "%s/data/sprites/nothing.sff", root);
+    Check(fopen(q, "rb") == NULL, "missing file stays missing");
+    snprintf(q, sizeof(q), "%s\\CHARS\\KFM.def", root);
+    Check(File_Find(q, out, NULL, "") == 1, "File_Find (file.c) ignores case");
+    snprintf(q, sizeof(q), "%s/Chars/KFM.DEF", root);
+    Check(File_Exists(q), "File_Exists (file.c)");
 
-    f = fopen(".p3a-selftest\\SOUND\\Out.TXT", "wb");
+    snprintf(q, sizeof(q), "%s\\SOUND\\Out.TXT", root);
+    f = fopen(q, "wb");
     if (f != NULL) {
         fputs("hello", f);
         fclose(f);
     }
-    Check(Exists(".p3a-selftest/Sound/Out.TXT") && !Exists(".p3a-selftest/SOUND"),
-          "a file created through fopen lands in the existing directory");
-    Check(Mugen_ResolvePath(".p3a-selftest/sound/out.txt", out, sizeof(out)) == 1, "... and is found at once");
+    Check(Exists(MK("Sound/Out.TXT")), "a file created through fopen lands in the existing directory");
+    if (!ci) {
+        Check(!Exists(MK("SOUND")), "... without creating a second directory");
+    }
+    snprintf(q, sizeof(q), "%s/sound/out.txt", root);
+    Check(Mugen_ResolvePath(q, out, sizeof(out)) == 1, "... and is found at once");
 
     Mugen_PathCacheStats(&st);
     Say("  directory cache: %ld hits, %ld misses, %ld reloads", st.hits, st.misses, st.reloads);
 
-    unlink(".p3a-selftest/Data/Sprites/Kfm.SFF");
-    unlink(".p3a-selftest/Chars/kfm.DEF");
-    unlink(".p3a-selftest/Sound/Out.TXT");
-    rmdir(".p3a-selftest/Data/Sprites");
-    rmdir(".p3a-selftest/Data");
-    rmdir(".p3a-selftest/Chars");
-    rmdir(".p3a-selftest/Sound");
-    rmdir(".p3a-selftest");
+    unlink(MK("Data/Sprites/Kfm.SFF"));
+    unlink(MK("Chars/kfm.DEF"));
+    unlink(MK("Sound/Out.TXT"));
+    rmdir(MK("Data/Sprites"));
+    rmdir(MK("Data"));
+    rmdir(MK("Chars"));
+    rmdir(MK("Sound"));
+    rmdir(root);
+#undef MK
     Mugen_PathCacheClear();
 }
 
@@ -178,7 +211,7 @@ static void Timing(void)
     Timer_Init();
     Timer_SetFps(60);
     t0 = NowNs(CLOCK_MONOTONIC);
-    cpu0 = NowNs(CLOCK_PROCESS_CPUTIME_ID);
+    cpu0 = NowNs(CLOCK_THREAD_CPUTIME_ID);
     for (i = 0; i < 120; ++i) {
         if (Timer_WaitFrame() > 0) {
             ++late;
@@ -186,13 +219,13 @@ static void Timing(void)
         g_timerFrame++;
     }
     wall = NowNs(CLOCK_MONOTONIC) - t0;
-    cpu = NowNs(CLOCK_PROCESS_CPUTIME_ID) - cpu0;
-    Say("  Timer_WaitFrame, 120 frames at 60 fps: %.1f ms wall (ideal %.1f), %.1f ms cpu (%.0f%%), %d late",
+    cpu = NowNs(CLOCK_THREAD_CPUTIME_ID) - cpu0;
+    Say("  Timer_WaitFrame, 120 frames at 60 fps: %.1f ms wall (ideal %.1f), %.1f ms cpu of this thread (%.0f%%), %d late",
         wall / 1e6, 119 * g_timerFrameTicks / 1e6, cpu / 1e6, 100.0 * cpu / wall, late);
     Check(wall >= 119 * g_timerFrameTicks, "frame pacing is never early");
 }
 
-int P3a_SelfTest(char *report, size_t cap)
+int P3a_SelfTest(char *report, size_t cap, const char *altDir)
 {
     char cwd[512];
     volatile unsigned char u = 0xFF;
@@ -220,7 +253,10 @@ int P3a_SelfTest(char *report, size_t cap)
     }
 
     Say("-- path resolution (real file.c on the platform layer)");
-    Paths();
+    Paths(".");                                    /* the data directory, relative paths */
+    if (altDir != NULL && altDir[0] != '\0') {
+        Paths(altDir);                             /* the app's internal cache: case-sensitive, absolute paths */
+    }
     Say("-- game files in the data directory (ignoring case)");
     GameFile("data\\mugen.cfg");
     GameFile("data\\fight.def");
