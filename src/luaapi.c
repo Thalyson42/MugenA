@@ -186,14 +186,14 @@ int LuaMugen_Random(struct lua_State *L)
 {
     int n = luaL_checkinteger(L, 1);
     GameVars *g;
-    unsigned __int64 s;
+    unsigned MUGEN_INT64 s;
 
     if (n <= 0) {
         luaL_error(L, "negative or zero random modulus");
     }
     g = g_game;
-    s = g->match_rng * (unsigned __int64)g->match_rng_mul;
-    s %= (unsigned __int64)g->match_rng_mod;
+    s = g->match_rng * (unsigned MUGEN_INT64)g->match_rng_mul;
+    s %= (unsigned MUGEN_INT64)g->match_rng_mod;
     g->match_rng = s;
     lua_pushinteger(L, (int)(unsigned int)s % n);
     return 1;

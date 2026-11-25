@@ -1,6 +1,8 @@
 #ifndef MUGEN_SPRITE_H
 #define MUGEN_SPRITE_H
 
+
+#include "platform/platform.h"
 /*
  * Sprites, the sprite sets they are loaded into (SFF files, see sff.h) and
  * the parameters of the sprite drawing entry points.
@@ -63,6 +65,6 @@ typedef struct SpriteSet {
 MUGEN_ASSERT_SIZE(SpriteSet, 0x18);
 
 /* Decoder of a compressed sprite format (g_spriteDecoders[format]). */
-typedef int (__cdecl *SpriteDecodeFn)(const void *data, size_t size, void *out);
+typedef int (MUGEN_CDECL *SpriteDecodeFn)(const void *data, size_t size, void *out);
 
 #endif /* MUGEN_SPRITE_H */

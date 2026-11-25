@@ -6,6 +6,7 @@
  * g_inputState and queue the changes in g_keyQueue for menus and key
  * configuration (Input_CodePending, Input_Translate*).
  */
+#include "platform/platform.h"
 #include <SDL.h>
 
 #include "mugen.h"

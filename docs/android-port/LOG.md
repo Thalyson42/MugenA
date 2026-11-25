@@ -2,6 +2,27 @@
 
 Uma entrada por conversa (modelo em 04-modelos-de-conversa.md). Mais recente no topo.
 
+### 2026-11-25 · P2 — Portabilidade do código · conversa 1
+Estado da fase: CONCLUÍDA (fechamento: run #9 do `android.yml` verde com o passo que exige >= 82 objetos de `mugen_core`; `Build` Windows verde no lote 2, 81 objetos, sem avisos). O Windows só foi verificado por compilação.
+Branch/commit: android/p2-portabilidade. Entregue em dois lotes (patch aplicado pelo dono com `git am`, a conversa não tinha credencial de push): lote 1 = camada de plataforma + código; lote 2 = avisos de 64 bits, alvo CMake e docs.
+Feito: D-012 e D-013 (ver 03-decisoes.md). `src/platform/` (platform.h, platform_win32.h, platform_posix.h/.c, sdl_config_posix.h, stubs/); macros `MUGEN_*` em 26 arquivos; `windows.h` isolado; Win32 puro atrás de `MUGEN_PLATFORM_WIN32`;
+  `MUGEN_ASSERT_SIZE` só no Win32; `Ftol64`/`Trunc64`; campos ponteiro-em-`int` corrigidos; alvo `mugen_core` no CMake Android.
+Verificado: lote 1: `Build` Windows verde (153/153, sem avisos do MSVC) e `android.yml` verde (mas só compilava o stub da P1). Lote 2: 81/81 `src/*.c` compilam com clang `--target=aarch64-linux-gnu`
+  (proxy local: headers glibc em vez de bionic, sem NDK), pelo CMake real (`mugen_core`), sem avisos de ponteiro↔int. **O CI Android com o NDK ainda não rodou o lote 2.**
+Pendente (não bloqueia a P3):
+1. Confirmar que o Windows continua idêntico em comportamento (só compilou até aqui). Se houver como rodar o `mugen.exe`, comparar o log de inicialização.
+2. Revisar os usos de `Trunc64`/`Ftol64` e de `float`/`double` dependentes de x87 antes da P5 (R2).
+Problemas conhecidos / armadilhas:
+- `char` do arm64 é sem sinal; `-fsigned-char` está no alvo `mugen_core` e **tem de ir também para o `libmugen.so`** quando `mugen_core` for linkado (P3).
+- `int64_t` é `long` no LP64: usar `MUGEN_INT64`/`long long`, nunca `int64_t`, onde o código declara `long long`.
+- Os stubs de GL/SDL/libresample (D-013) e a `platform_posix` são provisórios: não os trate como a camada final.
+- `Video_SetFullscreen`, o diálogo de erro e o ícone da janela no Android são mínimos (TODO P3); o plugin BGM `.dll` não carrega (P4).
+- `sizeof` de várias structs muda no arm64 (ponteiros de 8 bytes); nada deve depender dos offsets do binário de 32 bits fora dos asserts do Windows.
+Como validar: Windows: `tools\msvc_env.bat cmake --preset x86-release` e `cmake --build --preset x86-release`. Android: `cmake --preset android-arm64-debug && cmake --build --preset android-arm64-debug --target mugen_core`
+  (ou o job `android.yml`: `assembleDebug` agora compila os 81 `src/*.c` + `platform_posix.c`).
+Arquivos alterados: src/** (~50 arquivos), src/platform/** (novo), CMakeLists.txt, cmake/MugenAndroid.cmake, .github/workflows/android.yml (passo que conta os objetos), docs/android-port/{README,02-fases,03-decisoes,LOG}.md
+Próxima: P3 — Camada de plataforma. Levar: README.md e 03-decisoes.md (docs/android-port), esta entrada do LOG.md e os arquivos de `02-fases.md` (P3): `src/video.c`, `system.c`, `sdlmain.c`, `main.c`, `events.c`, `frame.c`, `gameloop.c`, `timer.c`, `file.c`, `stream.c`, `ini.c`, `log.c`, `error.c`, `config.c`, `cmdline.c`, `src/platform/*`.
+
 ### 2026-11-24 · P1 · fechamento pela coordenadora
 P1 **CONCLUÍDA**. Verificado: CI Android (`assembleDebug`, arm64) verde; `Build` Windows verde no PR; APK instalado e executado no aparelho de teste, relatório em D-010.
 Pendente menor (não bloqueia): o app de diagnóstico não mostra o botão "Copy report" no aparelho (o texto aparece e dá para copiar manualmente); corrigir quando mexer no app.

@@ -1,6 +1,8 @@
 #ifndef MUGEN_SELECT_H
 #define MUGEN_SELECT_H
 
+
+#include "platform/platform.h"
 /*
  * Character select screen: select.def (characters, stages, arcade order),
  * the [Select Info] layout of the motif, the select screen state machine and
@@ -497,7 +499,7 @@ MUGEN_ASSERT_SIZE(CharselState, 0x3D14);
 /* ---- generic screen loop (run by Screen_Run at 0x40E7C0) ---- */
 
 struct ScreenLoop;
-typedef int (__cdecl *ScreenFn)(struct ScreenLoop *screen, void *state);
+typedef int (MUGEN_CDECL *ScreenFn)(struct ScreenLoop *screen, void *state);
 
 /* Input bits of ScreenLoop.input (menu directions and buttons). */
 #define SCREEN_IN_UP        0x001
@@ -520,10 +522,10 @@ typedef struct ScreenLoop {
     void *bg;                       /* 0x34 background drawn behind and over the screen (system.def *BG) */
     float scale;                    /* 0x38 its scale */
     void *bgm;                      /* 0x3C BGM to play (Screen_Run: "Could not load BGM"), or NULL */
-    int cutscene;                   /* 0x40 a Cutscene * (storyboard screens), as an int */
+    intptr_t cutscene;              /* 0x40 a Cutscene * (storyboard screens), as an integer */
     int fade_out;                   /* 0x44 fade out started */
     int fade_ticks;                 /* 0x48 */
-    int key_table;                  /* 0x4C menu key table of the frame (g_screenKeys, as an int; Input_FindKey) */
+    intptr_t key_table;             /* 0x4C menu key table of the frame (g_screenKeys, as an integer; Input_FindKey) */
     int key_count;                  /* 0x50 its entries (2) */
     int key;                        /* 0x54 key pressed this frame (27 = escape) */
     unsigned int input2;            /* 0x58 */
@@ -555,6 +557,6 @@ MUGEN_ASSERT_OFFSET(ScreenLoop, init, 0x90);
 MUGEN_ASSERT_SIZE(ScreenLoop, 0xA8);
 
 /* Value of g_gfxFillRectColor (renderer dependent). */
-typedef void (__cdecl *GfxFillRectFn)(int x1, int y1, int x2, int y2, unsigned int color);
+typedef void (MUGEN_CDECL *GfxFillRectFn)(int x1, int y1, int x2, int y2, unsigned int color);
 
 #endif /* MUGEN_SELECT_H */

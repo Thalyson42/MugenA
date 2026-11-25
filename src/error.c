@@ -6,11 +6,14 @@
  * the debug clipboard (or of mugen.log) and quits. Player warnings go to the
  * debug clipboard.
  */
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#include "platform/platform.h"
+#if defined(MUGEN_PLATFORM_WIN32)
 #include <richedit.h>
+#endif
 #include <SDL.h>
+#if defined(MUGEN_PLATFORM_WIN32)
 #include <SDL_syswm.h>
+#endif
 
 #include "mugen.h"
 
@@ -138,6 +141,8 @@ void Error_Exit(void)
     exit(1);
 }
 
+#if defined(MUGEN_PLATFORM_WIN32)
+
 /* 0x0040C4C0: read-only rich edit with the text, sized to the dialog, above the OK button. */
 static INT_PTR CALLBACK ErrorDialog_Proc(HWND dlg, UINT msg, WPARAM wparam, LPARAM lparam)
 {
@@ -219,6 +224,20 @@ int Error_ShowDialog(const char *text, const char *title)
                     (LPARAM)&data);
     return 0;
 }
+
+#else /* !MUGEN_PLATFORM_WIN32 */
+
+/*
+ * Android: there is no Win32 dialog (dialog resource 200 and the rich edit are Windows only).
+ * TODO(P3): a real error screen; for now the text goes to stderr.
+ */
+int Error_ShowDialog(const char *text, const char *title)
+{
+    fprintf(stderr, "%s: %s\n", title, text);
+    return 0;
+}
+
+#endif /* MUGEN_PLATFORM_WIN32 */
 
 #define PLAYER_WARNING "%-4i: Warning: Player %s (%i) in state %i: %s\n"
 

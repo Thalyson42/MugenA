@@ -198,7 +198,7 @@ void Screen_Present(void)
 void Frame_UpdateSkip(void)
 {
     GameVars *g;
-    __int64 lag;
+    MUGEN_INT64 lag;
     int late;
 
     g_timerFrame++;

@@ -8,6 +8,7 @@
  * BGM. A ScreenLoop that is not inner is the fight: the game loop functions
  * (Game_*) run around the callbacks.
  */
+#include "platform/platform.h"
 #include <SDL.h>
 #include <SDL_mixer.h>
 #define HAVE_STRUCT_TIMESPEC 1      /* the CRT's time.h already has it */
@@ -611,7 +612,7 @@ int Screen_Init(ScreenLoop *screen)
     g_keyQueue.read = 0;
     g_screenKeys[0] = g->input_keys[0];
     g_screenKeys[1] = g->input_keys[1];
-    screen->key_table = (int)(intptr_t)g_screenKeys;
+    screen->key_table = (intptr_t)g_screenKeys;
     screen->key_count = 2;
     SysDraw_Clear(g->sysexplods);
     Gfx_SetRenderTarget(g_game->screen, 0);

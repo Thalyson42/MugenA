@@ -12,6 +12,7 @@
  * playing again with the same id reuses its slot and so stops the previous
  * sound. Channels of the slots are SDL_mixer channels (Mix_AllocateChannels).
  */
+#include "platform/platform.h"
 #include <SDL.h>
 #include <SDL_mixer.h>
 #include <libresample.h>
@@ -732,8 +733,8 @@ struct Mix_Chunk *Snd_DecodeWavResampled(Stream *s, int *status)
     }
     in_frame = (unsigned int)Wav_FrameSize(info.format.format, info.format.channels);
     out_frame = (unsigned int)Wav_FrameSize(g_sndFormat.format, g_sndFormat.channels);
-    estimate = (unsigned int)(__int64)ceil((double)info.frames * ratio);
-    capacity = (unsigned int)(__int64)((double)estimate + (ceil(ratio) + ceil(ratio)));
+    estimate = (unsigned int)Ftol64(ceil((double)info.frames * ratio));
+    capacity = (unsigned int)Ftol64((double)estimate + (ceil(ratio) + ceil(ratio)));
     out_buf = calloc(capacity, out_frame);
     if (out_buf == NULL) {
         g_outOfMemory = 1;

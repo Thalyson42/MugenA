@@ -15,6 +15,7 @@
  * truncate like __ftol2.
  */
 #define HAVE_STRUCT_TIMESPEC 1      /* the CRT's time.h already has it */
+#include "platform/platform.h"
 #include <pthread.h>
 
 #include "mugen.h"
@@ -2285,9 +2286,9 @@ void Player_MakeDust(Player *p)
 /* ------------------------------------------------------------------ drawing */
 
 /* The renderer entry points the debug display uses (g_gfxPutPixel, g_gfxInvertPixel, g_gfxDrawLineAdd). */
-typedef void (__cdecl *PS_PixelColorFn)(int x, int y, unsigned int color);
-typedef void (__cdecl *PS_PixelInvertFn)(int x, int y);
-typedef void (__cdecl *PS_LineFn)(float x1, float y1, float x2, float y2, unsigned int color);
+typedef void (MUGEN_CDECL *PS_PixelColorFn)(int x, int y, unsigned int color);
+typedef void (MUGEN_CDECL *PS_PixelInvertFn)(int x, int y);
+typedef void (MUGEN_CDECL *PS_LineFn)(float x1, float y1, float x2, float y2, unsigned int color);
 
 /* Resets a DrawParams to the defaults (scale 1, alpha 1, all fields valid). */
 static void PS_DrawDefaults(DrawParams *dp, unsigned int flags)

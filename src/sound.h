@@ -1,6 +1,8 @@
 #ifndef MUGEN_SOUND_H
 #define MUGEN_SOUND_H
 
+
+#include "platform/platform.h"
 /*
  * Types of the sound effects module (sound.c) and of the code it uses from
  * other, not yet decompiled modules: the id map container (0x466550..) and
@@ -73,7 +75,7 @@ struct Resampler;
  * Sample format converter (Audio_GetConverter, 0x49AB10): frames from src
  * (src_channels interleaved) to dst (dst_channels).
  */
-typedef void (__cdecl *AudioConvertFn)(void *dst, const void *src, unsigned int frames, int dst_channels,
+typedef void (MUGEN_CDECL *AudioConvertFn)(void *dst, const void *src, unsigned int frames, int dst_channels,
                                        int src_channels);
 
 /* State of a conversion (Resampler_Open). */
@@ -107,16 +109,16 @@ typedef struct ResamplerSession {
 } ResamplerSession;
 MUGEN_ASSERT_SIZE(ResamplerSession, 0x08);
 
-typedef ResamplerSession *(__cdecl *ResamplerOpenFn)(const AudioFormat *out, const AudioFormat *in, int chunk,
+typedef ResamplerSession *(MUGEN_CDECL *ResamplerOpenFn)(const AudioFormat *out, const AudioFormat *in, int chunk,
                                                      const int *quality);
-typedef struct Resampler *(__cdecl *ResamplerCreateFn)(const AudioFormat *out, int chunk, const int *quality);
-typedef void (__cdecl *ResamplerCloseFn)(ResamplerSession *s);
-typedef unsigned int (__cdecl *ResamplerCountFn)(ResamplerSession *s);
-typedef int (__cdecl *ResamplerStateFn)(ResamplerSession *s);
-typedef unsigned int (__cdecl *ResamplerWriteFn)(ResamplerSession *s, const void *in, unsigned int frames, int last);
-typedef unsigned int (__cdecl *ResamplerReadFn)(ResamplerSession *s, void *out, unsigned int frames);
-typedef const AudioFormat *(__cdecl *ResamplerGetFn)(ResamplerSession *s);
-typedef void (__cdecl *ResamplerResetFn)(ResamplerSession *s);
+typedef struct Resampler *(MUGEN_CDECL *ResamplerCreateFn)(const AudioFormat *out, int chunk, const int *quality);
+typedef void (MUGEN_CDECL *ResamplerCloseFn)(ResamplerSession *s);
+typedef unsigned int (MUGEN_CDECL *ResamplerCountFn)(ResamplerSession *s);
+typedef int (MUGEN_CDECL *ResamplerStateFn)(ResamplerSession *s);
+typedef unsigned int (MUGEN_CDECL *ResamplerWriteFn)(ResamplerSession *s, const void *in, unsigned int frames, int last);
+typedef unsigned int (MUGEN_CDECL *ResamplerReadFn)(ResamplerSession *s, void *out, unsigned int frames);
+typedef const AudioFormat *(MUGEN_CDECL *ResamplerGetFn)(ResamplerSession *s);
+typedef void (MUGEN_CDECL *ResamplerResetFn)(ResamplerSession *s);
 
 /* Function table of the resampler (0x4F1890 in .rdata, g_resamplerVtbl). */
 struct ResamplerVtbl {
@@ -135,7 +137,7 @@ struct ResamplerVtbl {
 };
 MUGEN_ASSERT_SIZE(ResamplerVtbl, 0x30);
 
-typedef ResamplerSession *(__cdecl *ResamplerBeginFn)(struct Resampler *r, const WavInfo *in);
+typedef ResamplerSession *(MUGEN_CDECL *ResamplerBeginFn)(struct Resampler *r, const WavInfo *in);
 
 /* Converter to the mixer format (Resampler_Create), used by the libresample SFX path. */
 typedef struct Resampler {

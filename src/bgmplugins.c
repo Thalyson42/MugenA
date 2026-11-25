@@ -14,6 +14,7 @@
  * Plugin settings are read with BgmSettings_Get directly (not through the
  * accessor given to init).
  */
+#include "platform/platform.h"
 #include <SDL.h>
 #include <SDL_mixer.h>
 
@@ -270,7 +271,7 @@ int Mpg123_Init(const BgmPluginConfig *config, const BgmHostCallbacks *host, Bgm
     }
     s = BgmSettings_Get(settings, "readbuffersize");
     if (s != NULL) {
-        size = (int)config;
+        size = (int)(intptr_t)config;
         sscanf(s, "%d", &size);
         if (size > 0) {
             g_mpg123ReadBufferSize = (unsigned int)size;

@@ -5,6 +5,7 @@
  * text drawing (alignment, line and word wrapping, tabs, colour scaling
  * through PalFX) and measuring functions.
  */
+#include "platform/platform.h"
 #include <SDL_ttf.h>
 
 #include "mugen.h"
@@ -14,7 +15,7 @@
 #define FONTS_MAX           10          /* font0 .. font9 of Fonts_Load */
 
 /* SDL_gfx (no header in the SDK). */
-extern SDL_Surface *__cdecl zoomSurface(SDL_Surface *src, double zoomx, double zoomy, int smooth);
+extern SDL_Surface *MUGEN_CDECL zoomSurface(SDL_Surface *src, double zoomx, double zoomy, int smooth);
 
 /* The sprite in slot index of a keyed array of sprites (no check, as in the original). */
 static Sprite *Font_SpriteAt(const KeyedArray *sprites, int index)

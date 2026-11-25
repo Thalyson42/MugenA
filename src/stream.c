@@ -177,7 +177,9 @@ void Stream_FreeBuffer(Stream *s)
     if (s->buf_alloc == STREAM_ALLOC_MALLOC) {
         free(s->begin);
     } else if (s->buf_alloc == STREAM_ALLOC_VIRTUAL) {
+#if defined(MUGEN_PLATFORM_WIN32)
         VirtualFree(s->begin, 0, MEM_DECOMMIT);
+#endif   /* nothing allocates STREAM_ALLOC_VIRTUAL buffers (not even on Windows); there is no VirtualFree elsewhere */
     }
     s->end = NULL;
     s->begin = NULL;

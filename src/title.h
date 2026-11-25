@@ -1,6 +1,8 @@
 #ifndef MUGEN_TITLE_H
 #define MUGEN_TITLE_H
 
+
+#include "platform/platform.h"
 /*
  * Title screen (the "mode select" menu of the log), the options screen, the
  * key / joystick configuration loop and the training menu (title.c).
@@ -172,9 +174,9 @@ enum {
 /* ---- renderer entry points with known parameters ---- */
 
 /* g_gfxDrawLine: a line between two points. */
-typedef void (__cdecl *GfxLineFn)(float x1, float y1, float x2, float y2, unsigned int color);
+typedef void (MUGEN_CDECL *GfxLineFn)(float x1, float y1, float x2, float y2, unsigned int color);
 
 /* g_gfxPutPixel: one pixel. */
-typedef void (__cdecl *GfxPixelFn)(int x, int y, unsigned int color);
+typedef void (MUGEN_CDECL *GfxPixelFn)(int x, int y, unsigned int color);
 
 #endif /* MUGEN_TITLE_H */

@@ -19,6 +19,8 @@
  */
 #include "mugen.h"
 
+#if defined(MUGEN_PLATFORM_WIN32)
+
 static char g_stdoutPath[MAX_PATH];     /* 0x00503178 */
 static char g_stderrPath[MAX_PATH];     /* 0x00503280 */
 static int g_stdioRedirected;           /* 0x00503384 */
@@ -268,3 +270,12 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
     return 0;
 }
 
+#else /* !MUGEN_PLATFORM_WIN32 */
+
+/*
+ * Android has no WinMain: the process is started by the Java/Kotlin activity and enters the engine through JNI.
+ * TODO(P3): that entry point (and D-002, the SDL layer) lives in src/platform/. Nothing to compile here for now.
+ */
+typedef int MugenSdlMainIsWin32Only;
+
+#endif /* MUGEN_PLATFORM_WIN32 */

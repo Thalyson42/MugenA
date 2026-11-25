@@ -10,13 +10,12 @@
  * these functions, so the globals are part of the interface.
  */
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <mmsystem.h>
+#include "platform/platform.h"
 
 #include "mugen.h"
 
 /* Current time relative to g_timerStart (inlined everywhere in the original). */
-static __int64 Timer_Count(void)
+static MUGEN_INT64 Timer_Count(void)
 {
     LARGE_INTEGER now;
 
@@ -24,7 +23,7 @@ static __int64 Timer_Count(void)
         QueryPerformanceCounter(&now);
         return now.QuadPart - g_timerStart;
     }
-    return (__int64)timeGetTime() - g_timerStart;
+    return (MUGEN_INT64)timeGetTime() - g_timerStart;
 }
 
 /* 0x00476C90: always returns 1. */
@@ -51,9 +50,9 @@ int Timer_Init(void)
 }
 
 /* 0x00476D70: time since Timer_Init in 1/g_timerTicksPerSecond seconds (1/100). */
-__int64 Timer_GetTicks(void)
+MUGEN_INT64 Timer_GetTicks(void)
 {
-    return (__int64)g_timerTicksPerSecond * Timer_Count() / g_timerFrequency;
+    return (MUGEN_INT64)g_timerTicksPerSecond * Timer_Count() / g_timerFrequency;
 }
 
 /*
@@ -63,15 +62,15 @@ __int64 Timer_GetTicks(void)
  */
 float Timer_GetFps(void)
 {
-    __int64 now = Timer_Count();
-    __int64 ticks;
-    __int64 elapsed;
+    MUGEN_INT64 now = Timer_Count();
+    MUGEN_INT64 ticks;
+    MUGEN_INT64 elapsed;
 
     if (g_timerFpsFrames < g_timerFpsInterval) {
         g_timerFpsFrames++;
         return (float)g_timerMeasuredFps;
     }
-    ticks = (__int64)(g_timerFpsInterval + 1) * g_timerFrequency;
+    ticks = (MUGEN_INT64)(g_timerFpsInterval + 1) * g_timerFrequency;
     elapsed = now - g_timerFpsStart;
     g_timerFpsStart = now;
     g_timerFpsFrames = 0;
@@ -91,7 +90,7 @@ void Timer_Reset(void)
 }
 
 /* 0x00476F30: number of frames due since g_timerFrameStart. */
-__int64 Timer_GetFrame(void)
+MUGEN_INT64 Timer_GetFrame(void)
 {
     return (Timer_Count() - g_timerFrameStart) / g_timerFrameTicks;
 }
@@ -99,7 +98,7 @@ __int64 Timer_GetFrame(void)
 /* 0x00476F90: makes the current time frame 0 (after a stall or a speed change). */
 void Timer_ResetFrame(void)
 {
-    __int64 now = Timer_Count();
+    MUGEN_INT64 now = Timer_Count();
 
     g_timerFrame = 0;
     g_timerResyncs++;
@@ -119,9 +118,9 @@ void Timer_SetFps(int fps)
 }
 
 /* 0x00477040: ticks left until frame g_timerFrame is due (negative when late). */
-__int64 Timer_GetFrameTimeLeft(void)
+MUGEN_INT64 Timer_GetFrameTimeLeft(void)
 {
-    __int64 due = g_timerFrame * g_timerFrameTicks + g_timerFrameStart;
+    MUGEN_INT64 due = g_timerFrame * g_timerFrameTicks + g_timerFrameStart;
 
     return due - Timer_Count();
 }
@@ -133,7 +132,7 @@ __int64 Timer_GetFrameTimeLeft(void)
  */
 int Timer_WaitFrame(void)
 {
-    __int64 behind;
+    MUGEN_INT64 behind;
     int ms = (int)(Timer_GetFrameTimeLeft() * 1000 / g_timerFrequency);
 
     if (ms > 2) {

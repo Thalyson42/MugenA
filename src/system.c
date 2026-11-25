@@ -5,9 +5,10 @@
  * tables, the fight.def loader and the window focus handlers.
  */
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <mmsystem.h>
+#include "platform/platform.h"
+#if defined(MUGEN_PLATFORM_WIN32)
 #include <shlobj.h>
+#endif
 #include <SDL.h>
 #include <SDL_mixer.h>
 #include <SDL_syswm.h>
@@ -22,6 +23,7 @@
 /* 0x0041A500: gives the SDL window the program icon. */
 void System_SetWindowIcon(void)
 {
+#if defined(MUGEN_PLATFORM_WIN32)
     HMODULE module = GetModuleHandleA(NULL);
     SDL_SysWMinfo info;
     HWND window;
@@ -33,6 +35,9 @@ void System_SetWindowIcon(void)
     if (icon != NULL) {
         SetClassLongA(window, GCL_HICON, (LONG)icon);
     }
+#else
+    /* Android: the launcher icon belongs to the APK (P11); there is no window icon to set. */
+#endif
 }
 
 /* 0x0041E260: g_onActivate callback. */
@@ -1180,7 +1185,7 @@ void Fight_Free(void)
 int GameVars_Init(void)
 {
     GameVars *g = g_game;
-    __time64_t now;
+    time_t now;       /* 64-bit on MSVC (no _USE_32BIT_TIME_T) and on arm64: what the original calls __time64_t */
     FILE *fp;
     void *palgroups;
 

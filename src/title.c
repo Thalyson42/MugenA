@@ -12,6 +12,7 @@
  * training menu are drawn with the built-in fonts and plain rectangles; the
  * key configuration runs its own frame loop.
  */
+#include "platform/platform.h"
 #include <SDL.h>
 
 #include "mugen.h"
@@ -1219,7 +1220,7 @@ int Options_Draw(ScreenLoop *screen, OptionsState *st)
     } else if (menu == OPTIONS_MENU_TEAM) {
         title = "TEAM MODE CONFIG";
     }
-    oi->title.text_ptr = (int)(intptr_t)title;
+    oi->title.text_ptr = (intptr_t)title;
     if (oi->title.type != SYSELEM_NONE) {
         SysElem_DrawMotif(&oi->title, 0.0f, 0.0f);
     } else {

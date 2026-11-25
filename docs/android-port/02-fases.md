@@ -33,7 +33,7 @@ Regra para trabalho paralelo: cada conta em sua branch `android/p<n>-<tema>`; s�
 5. Workflow de CI para Android (`.github/workflows/android.yml`) gerando APK debug como artefato.
 **Levar:** `CMakeLists.txt`, `CMakePresets.json`, `cmake/*`, `third_party/README.md`, `.github/workflows/build.yml`, `tools/msvc_env.bat`.
 6. App de diagnóstico mínimo que registra as informações do aparelho de referência em `03-decisoes.md` (D-010).
-**Pronto quando:** `./gradlew assembleDebug` no CI gera APK arm64 que roda no A06 5G; Windows continua verde.
+**Pronto quando:** `./gradlew assembleDebug` no CI gera APK arm64 que roda no SM-A065M; Windows continua verde.
 
 ## P2 — Portabilidade do código (64 bits, Win32, convenções)
 **Objetivo:** todos os `src/*.c` compilam com clang/NDK (ainda sem rodar).
@@ -67,7 +67,7 @@ Regra para trabalho paralelo: cada conta em sua branch `android/p<n>-<tema>`; s�
 ## P5 — Primeiro boot com renderer software  **(Marco M1)**
 **Objetivo:** tela de título e uma luta rodando no Android usando `RENDER_SYSTEM` (software, RGB565).
 **Tarefas:** apresentar o framebuffer software como textura GLES simples (quad) ou `ANativeWindow`; escala/letterbox;
-otimizar o caminho de software para o A06 5G (NEON, resolução interna, escala pela GPU); medir FPS e tempo de frame **no aparelho**; corrigir crashes de 64 bits que aparecerem; teste diferencial de `mugen.log` contra Windows.
+otimizar o caminho de software para o SM-A065M (NEON, resolução interna, escala pela GPU); medir FPS e tempo de frame **no aparelho**; corrigir crashes de 64 bits que aparecerem; teste diferencial de `mugen.log` contra Windows.
 **Levar:** `src/video.c`, `src/gfx.c`, `src/gfx.h`, `src/frame.c`, `src/softrender.c`, `src/softblend.c`, `src/sprite.c`, `src/spritecodec.c`, `src/palette.c`, `src/prim.c`, `src/globals.c` (tabelas de renderer), `src/game.h`.
 **Pronto quando:** título → select → luta VS jogáveis (mesmo sem toque, com teclado/gamepad); `mugen.log` equivalente ao do Windows nos cenários do README.
 

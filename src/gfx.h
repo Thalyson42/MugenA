@@ -1,6 +1,8 @@
 #ifndef MUGEN_GFX_H
 #define MUGEN_GFX_H
 
+
+#include "platform/platform.h"
 /*
  * Graphics core (gfx.c): render targets, the clip rectangle, the screen
  * buffer, presenting it, fades and the renderer function tables that
@@ -8,29 +10,29 @@
  */
 
 /* Renderer-specific "clear the current target" entry point (see g_gfxClear). */
-typedef void (__cdecl *GfxClearFn)(unsigned int color);
+typedef void (MUGEN_CDECL *GfxClearFn)(unsigned int color);
 
 /* Renderer entry point whose parameters are not known yet (call through a cast). */
-typedef void (__cdecl *GfxFn)(void);
+typedef void (MUGEN_CDECL *GfxFn)(void);
 
 /* Fills the rectangle (x1, y1)-(x2, y2) with color (g_gfxFillRect). */
-typedef void (__cdecl *GfxRectFn)(int x1, int y1, int x2, int y2, unsigned int color);
+typedef void (MUGEN_CDECL *GfxRectFn)(int x1, int y1, int x2, int y2, unsigned int color);
 
 /* Blends color over the rectangle with source/destination alphas out of 256 (g_gfxBlendRect). */
-typedef void (__cdecl *GfxBlendRectFn)(int x1, int y1, int x2, int y2, unsigned int color, int alpha_src,
+typedef void (MUGEN_CDECL *GfxBlendRectFn)(int x1, int y1, int x2, int y2, unsigned int color, int alpha_src,
                                        int alpha_dst);
 
 /* Returns the screen as malloc'ed 32-bit RGBA pixels (g_gfxCapture, OpenGL renderers). */
-typedef void *(__cdecl *GfxCaptureFn)(void);
+typedef void *(MUGEN_CDECL *GfxCaptureFn)(void);
 
 /* Shows sprite `sprite` of set (the screen buffer) at (x, y), scaled to w x h by OpenGL (g_gfxPresent). */
-typedef void (__cdecl *GfxPresentFn)(SpriteSet *set, int sprite, float x, float y, float w, float h);
+typedef void (MUGEN_CDECL *GfxPresentFn)(SpriteSet *set, int sprite, float x, float y, float w, float h);
 
 /* Called by Gfx_Present with the screen buffer before it is shown (g_gfxPrePresent). */
-typedef void (__cdecl *GfxOverlayFn)(SpriteSet *set, int sprite);
+typedef void (MUGEN_CDECL *GfxOverlayFn)(SpriteSet *set, int sprite);
 
 /* glBindFramebufferEXT, through GLEW's function pointer. */
-typedef void (__stdcall *GlBindFramebufferFn)(unsigned int target, unsigned int framebuffer);
+typedef void (MUGEN_STDCALL *GlBindFramebufferFn)(unsigned int target, unsigned int framebuffer);
 
 /* Renderer indices of the function tables (g_renderMode, see game.h and palette.h). */
 #define GFX_RENDERER_COUNT 4

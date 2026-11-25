@@ -1082,12 +1082,12 @@ int BgElem_InitParallax(int tile, BgElem *e, Bg *bg, float width_top, float widt
         return 1;
     }
     bytes = (spr->bpp + 7) >> 3;
-    e->row_widths = calloc((size_t)(__int64)e->height, sizeof(int));
+    e->row_widths = calloc((size_t)(MUGEN_INT64)e->height, sizeof(int));
     if (e->row_widths == NULL) {
         g_outOfMemory = 1;
         return 0;
     }
-    e->rows = calloc((size_t)(__int64)e->height, sizeof(unsigned char *));
+    e->rows = calloc((size_t)(MUGEN_INT64)e->height, sizeof(unsigned char *));
     if (e->rows == NULL) {
         g_outOfMemory = 1;
         return 0;
@@ -1554,7 +1554,7 @@ void BgElem_DrawParallaxSoftMasked(Bg *bg, BgElem *e, float scale_x, float scale
                             src = src_row + iu;
                             step = Trunc64(1.0 / scale_x * BG_FIXED_ONE);
                             frac = (float)(u - (double)iu);
-                            acc = (unsigned int)(__int64)((double)frac * BG_FIXED_ONE + (double)(unsigned int)step);
+                            acc = (unsigned int)Ftol64((double)frac * BG_FIXED_ONE + (double)(unsigned int)step);
                             for (; len != 0; len--) {
                                 if (*src != 0) {
                                     *dst = pal->rgb565[*src];
@@ -1664,7 +1664,7 @@ void BgElem_DrawParallaxSoft(Bg *bg, BgElem *e, float scale_x, float scale_y)
                         src = src_row + iu;
                         step = Trunc64(1.0 / scale_x * BG_FIXED_ONE);
                         frac = (float)(u - (double)iu);
-                        acc = (unsigned int)(__int64)((double)frac * BG_FIXED_ONE + (double)(unsigned int)step);
+                        acc = (unsigned int)Ftol64((double)frac * BG_FIXED_ONE + (double)(unsigned int)step);
                         for (; len != 0; len--) {
                             *dst = pal->rgb565[*src];
                             dst++;

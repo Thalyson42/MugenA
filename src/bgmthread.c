@@ -15,6 +15,7 @@
  * thread and changed under SDL_LockAudio, the ring's space and fill
  * counters with Interlocked operations, as in the original.
  */
+#include "platform/platform.h"
 #include <SDL.h>
 #include <SDL_mixer.h>
 #define HAVE_STRUCT_TIMESPEC 1      /* the CRT's time.h already has it */
@@ -134,6 +135,23 @@ int BgmThread_Init(const AudioFormat *format, int chunk)
     return err;
 }
 
+/*
+ * A queued command keeps a pointer in its two data words: one word on the 32-bit build, both on arm64.
+ * (The original stores it as `(int)ptr`.)
+ */
+static void *bgm_data_ptr(const int *data)
+{
+    void *p;
+
+    memcpy(&p, data, sizeof p);
+    return p;
+}
+
+static void bgm_set_data_ptr(int *data, const void *p)
+{
+    memcpy(data, &p, sizeof p);
+}
+
 /* Runs one queued command (the switch of BgmThread_Main). */
 static void bgm_run_command(const BgmCommand *c, int *running)
 {
@@ -141,10 +159,10 @@ static void bgm_run_command(const BgmCommand *c, int *running)
 
     switch (c->cmd) {
     case BGM_CMD_LOAD:
-        BgmThread_Load((const BgmInfo *)c->data[0]);
+        BgmThread_Load((const BgmInfo *)bgm_data_ptr(c->data));
         break;
     case BGM_CMD_PLAY:
-        BgmThread_Play((const BgmInfo *)c->data[0]);
+        BgmThread_Play((const BgmInfo *)bgm_data_ptr(c->data));
         break;
     case BGM_CMD_UNLOAD:
         BgmThread_Unload();
@@ -175,7 +193,7 @@ static void bgm_run_command(const BgmCommand *c, int *running)
     case BGM_CMD_SET_STREAM: {
         int muted;
 
-        g_bgmStream = (BgmStream *)c->data[0];
+        g_bgmStream = (BgmStream *)bgm_data_ptr(c->data);
         BgmThread_UpdateHook();
         muted = g_bgmMuted;
         s = g_bgmStream;
@@ -357,8 +375,8 @@ void BgmQueue_Drop(int time)
     int i;
 
     for (i = 0; i < n && g_bgmQueue[i].time <= time; i++) {
-        if (g_bgmQueue[i].owns_data && g_bgmQueue[i].data[0] != 0) {
-            free((void *)g_bgmQueue[i].data[0]);
+        if (g_bgmQueue[i].owns_data && bgm_data_ptr(g_bgmQueue[i].data) != NULL) {
+            free(bgm_data_ptr(g_bgmQueue[i].data));
         }
     }
     memcpy(&g_bgmQueue[0], &g_bgmQueue[i], (n - i) * sizeof(BgmCommand));
@@ -376,7 +394,7 @@ static int bgm_queue_info(int time, const BgmInfo *info, int cmd)
         return 1;
     }
     memcpy(copy, info, sizeof(BgmInfo));
-    data[0] = (int)copy;
+    bgm_set_data_ptr(data, copy);
     err = Bgm_QueueCommand(time, data, cmd, 1);
     if (err != 0) {
         free(copy);
