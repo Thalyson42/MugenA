@@ -5,6 +5,7 @@ import android.app.ActivityManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.os.Build
@@ -16,6 +17,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import java.io.File
 import kotlin.concurrent.thread
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
@@ -23,7 +25,8 @@ import javax.microedition.khronos.opengles.GL10
 /**
  * Diagnostic app. P1: reports the device facts that decision D-010 asks for (Android version, ABI, GLES, Vulkan
  * features, screen, RAM) and the versions of the libraries linked into libmugen.so. P3a: also sets the data directory
- * of the engine (D-005) and runs the self-test of the platform layer. The report is shown, logged (tag "mugen-diag")
+ * of the engine (D-005) and runs the self-test of the platform layer. P3b: a button starts MugenActivity (SDLActivity),
+ * whose SDL_main writes sdl-probe.txt in the data directory; it is appended to the report on return. The report is shown, logged (tag "mugen-diag")
  * and can be copied to paste into docs/android-port/03-decisoes.md or LOG.md.
  */
 class MainActivity : Activity() {
@@ -33,6 +36,7 @@ class MainActivity : Activity() {
     private var nativeInfo = ""
     private var platformInfo = "P3a self-test: running..."
     private var dataDir = ""
+    private var sdlInfo = "P3b SDL probe: not run yet (tap \"Run SDL probe\")"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,6 +78,15 @@ class MainActivity : Activity() {
             text = "Test error dialog"
             setOnClickListener { thread(name = "p3a-error") { Native.testError() } }
         }
+        val sdlButton = Button(this).apply {
+            text = "Run SDL probe (P3b, 20 s)"
+            setOnClickListener {
+                // no stale report: if the probe dies before writing, the report says so instead of showing an old run
+                if (dataDir.isNotEmpty()) File(dataDir, "sdl-probe.txt").delete()
+                sdlInfo = "P3b SDL probe: no report written (the probe crashed or did not start; see logcat -s mugen-sdl)"
+                startActivity(Intent(this@MainActivity, MugenActivity::class.java))
+            }
+        }
         val copy = Button(this).apply {
             text = "Copy report"
             setOnClickListener {
@@ -114,6 +127,7 @@ class MainActivity : Activity() {
 
         root.addView(copy)
         root.addView(errorButton)
+        root.addView(sdlButton)
         root.addView(gl, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 4))
         root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
@@ -128,11 +142,19 @@ class MainActivity : Activity() {
 
     private fun fullReport() =
         "$deviceInfo\n\n$glInfo\n\n--- libmugen.so ---\n$nativeInfo\n\n--- data directory (D-005) ---\n$dataDir\n" +
-            "Copy the M.U.G.E.N 1.1b1 files here (data, chars, stages, sound, font...).\n\n$platformInfo"
+            "Copy the M.U.G.E.N 1.1b1 files here (data, chars, stages, sound, font...).\n\n$platformInfo\n\n--- P3b SDL probe ---\n$sdlInfo"
 
     override fun onResume() {
         super.onResume()
         Native.activity = this
+        // The probe's SDL_main leaves its report in the data directory; show the latest one (if the activity ran).
+        if (dataDir.isNotEmpty()) {
+            val f = File(dataDir, "sdl-probe.txt")
+            if (f.exists()) {
+                sdlInfo = try { f.readText() } catch (e: Exception) { "sdl-probe.txt unreadable: $e" }
+                refresh()
+            }
+        }
     }
 
     override fun onPause() {

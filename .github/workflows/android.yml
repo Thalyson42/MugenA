@@ -64,6 +64,28 @@ jobs:
           echo "unstripped copy: $full"
           test -z "$full" || nm "$full" | grep -E ' [Tt] (Mugen_fopen|Mugen_ResolvePath|Timer_WaitFrame|Log_Init|File_Find)$' | sort -u || true
 
+      - name: Check the SDL stack in the APK (P3b M1a)
+        run: |
+          apk=$(ls android/app/build/outputs/apk/debug/*.apk)
+          # the three native libraries side by side: libSDL2.so (SDL2), libSDL.so (sdl12-compat), libmugen.so
+          for l in libSDL2.so libSDL.so libmugen.so; do
+            test "$(unzip -l "$apk" | grep -c "lib/arm64-v8a/$l")" = 1
+          done
+          # the Java side of SDL2 is in the dex files
+          mkdir -p build/apkdex && unzip -o -q "$apk" 'classes*.dex' -d build/apkdex
+          cat build/apkdex/classes*.dex | grep -a -c 'Lorg/libsdl/app/SDLActivity;'
+          cat build/apkdex/classes*.dex | grep -a -c 'Lio/github/thalyson42/mugen/MugenActivity;'
+          # libmugen.so exports SDL_main (what SDLActivity looks up) and needs both SDL libraries; the compat library must
+          # NOT link libSDL2.so (it finds it with dlopen, under the patched name)
+          so=$(find android/app/build -path '*arm64-v8a*' -name libmugen.so | head -1)
+          nm -D --defined-only "$so" | grep -E ' T SDL_main$'
+          readelf -d "$so" | grep -E 'NEEDED.*(libSDL2\.so|libSDL\.so)'
+          compat=$(find android/app/build -path '*arm64-v8a*' -name libSDL.so | head -1)
+          readelf -d "$compat" | grep NEEDED
+          if readelf -d "$compat" | grep -q 'NEEDED.*libSDL2'; then echo 'libSDL.so must not link libSDL2.so'; exit 1; fi
+          strings -a "$compat" | grep -x 'libSDL2.so'
+          if strings -a "$compat" | grep -q 'libSDL2-2.0.so.0'; then echo 'unpatched dlopen name in libSDL.so'; exit 1; fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: mugen-unleashed-android-debug

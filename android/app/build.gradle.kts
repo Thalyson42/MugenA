@@ -27,6 +27,11 @@ android {
         }
     }
 
+    sourceSets {
+        // P3b (D-015): the Java side of SDL2 (SDLActivity & co.), vendored unmodified except the marked HID line.
+        getByName("main").java.srcDir("../../third_party/SDL2/android-project/app/src/main/java")
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

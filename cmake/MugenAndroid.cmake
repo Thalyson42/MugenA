@@ -57,7 +57,38 @@ add_library(stb_image STATIC "${_tp}/stb/stb_image.c")
 target_include_directories(stb_image PUBLIC "${_tp}/stb")
 mugen_android_third_party(stb_image)
 
-# TODO(P3, D-002/D-003): SDL layer, SDL_mixer, SDL_ttf (+FreeType), SDL_gfx, libresample, libmpg123.
+# ---- P3b (M1a): SDL2 + sdl12-compat (D-002 (A), D-015) -----------------------------------------------------------
+# libSDL2.so is the real SDL2 (it hosts the JNI side of the Java SDLActivity); libSDL.so is sdl12-compat, the SDL 1.2 API
+# the engine is written against; the compat library finds libSDL2.so at run time with dlopen (patched name, D-015).
+# SDL2 is built C-only: HIDAPI (the only C++ part, and the only user of the HIDDevice* natives) is off, and the matching
+# line of SDLActivity.java is patched (third_party/SDL2/README-mugen.md). Controllers still arrive through Android's own
+# joystick path.
+set(SDL_SHARED ON CACHE BOOL "" FORCE)
+set(SDL_STATIC OFF CACHE BOOL "" FORCE)
+set(SDL_TEST OFF CACHE BOOL "" FORCE)
+set(SDL_TESTS OFF CACHE BOOL "" FORCE)
+set(SDL_HIDAPI OFF CACHE BOOL "" FORCE)
+set(SDL_HIDAPI_JOYSTICK OFF CACHE BOOL "" FORCE)
+set(SDL_VIRTUAL_JOYSTICK OFF CACHE BOOL "" FORCE)
+set(SDL_CCACHE OFF CACHE BOOL "" FORCE)
+add_subdirectory("${_tp}/SDL2" "${CMAKE_CURRENT_BINARY_DIR}/SDL2")
+target_link_options(SDL2 PRIVATE ${MUGEN_ANDROID_LINK_FLAGS})
+
+# sdl12-compat: one C file. Its own CMakeLists.txt (vendored for reference) is not used: it wants find_package(SDL2) and
+# installs; this is what it does for the library on Linux-like systems. The SDL 1.2 headers are in include/SDL.
+add_library(SDL12 SHARED "${_tp}/sdl12-compat/src/SDL12_compat.c")
+set_target_properties(SDL12 PROPERTIES OUTPUT_NAME SDL)            # libSDL.so
+# SDL12_compat.c includes the SDL 2 headers by name (SDL.h): they must come first for this one target.
+target_include_directories(SDL12 PRIVATE "${_tp}/SDL2/include")
+target_include_directories(SDL12 INTERFACE "${_tp}/sdl12-compat/include/SDL")   # what the engine includes (M1c)
+target_compile_definitions(SDL12 PRIVATE _REENTRANT SDL_DISABLE_IMMINTRIN_H)
+target_compile_options(SDL12 PRIVATE -w)
+target_link_libraries(SDL12 PRIVATE ${CMAKE_DL_LIBS})
+target_link_options(SDL12 PRIVATE ${MUGEN_ANDROID_LINK_FLAGS})
+set_target_properties(SDL12 PROPERTIES POSITION_INDEPENDENT_CODE ON)
+add_dependencies(SDL12 SDL2)   # libSDL2.so has to be in the APK next to it
+
+# TODO(P3b M2, D-003): SDL_mixer, SDL_ttf (+FreeType), SDL_gfx, libresample, libmpg123.
 
 # Compile flags of every engine source (mugen_core, mugen_p3a, mugen_platform, libmugen.so). R2: no FMA contraction,
 # never -ffast-math. The original is a signed-char, non-strict-aliasing MSVC binary: char is unsigned on arm64 and clang
@@ -128,14 +159,23 @@ endif()
 
 # The engine library loaded by the Kotlin app. P3a: it links the platform layer and the engine subset above, and exposes
 # them through JNI (initialisation, self-test, error dialog); the rest of the engine joins in P3b.
+# P3b M1a/M1b: SDL_main, the entry point SDLActivity runs (SDL2 API, then the SDL 1.2 mode test). It is an object library of
+# its own because it must see the SDL 2 headers, whose file names collide with the SDL 1.2 headers of the engine.
+add_library(mugen_sdl_probe OBJECT android/app/src/main/cpp/mugen_sdl_probe.c)
+target_include_directories(mugen_sdl_probe PRIVATE "${_tp}/SDL2/include")
+target_compile_options(mugen_sdl_probe PRIVATE -ffp-contract=off -fsigned-char -Wall)
+set_target_properties(mugen_sdl_probe PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 add_library(mugen SHARED
   android/app/src/main/cpp/mugen_android_stub.c
-  android/app/src/main/cpp/mugen_selftest.c)
+  android/app/src/main/cpp/mugen_selftest.c
+  $<TARGET_OBJECTS:mugen_sdl_probe>)
 target_include_directories(mugen PRIVATE ${MUGEN_ANDROID_ENGINE_INCLUDES})
 target_compile_definitions(mugen PRIVATE MUGEN_PLATFORM_ANDROID=1)
 # R2 (docs/android-port/01-analise-do-repo.md) and D-012/D-014: the engine flags, -fsigned-char included, on libmugen.so too.
 target_compile_options(mugen PRIVATE ${MUGEN_ANDROID_ENGINE_FLAGS} -Wall)
-target_link_libraries(mugen PRIVATE mugen_p3a mugen_platform lua51 png12 minizip cgltf stb_image log android ${MUGEN_ZLIB})
+target_link_libraries(mugen PRIVATE mugen_p3a mugen_platform lua51 png12 minizip cgltf stb_image
+  $<LINK_ONLY:SDL2> $<LINK_ONLY:SDL12> log android ${MUGEN_ZLIB})   # LINK_ONLY: no SDL headers leak into libmugen's own files
 target_link_options(mugen PRIVATE ${MUGEN_ANDROID_LINK_FLAGS})
 if(MUGEN_ANDROID_BUILD_CORE)
   add_dependencies(mugen mugen_core)   # built with the library, but not linked into it until P3b

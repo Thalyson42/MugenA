@@ -15,5 +15,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- P3b: runs SDL_main of libmugen.so (SDLActivity). The configChanges keep the process and the GL context alive on
+             rotation/keyboard/density changes, as SDL expects; foreground/background still arrive as SDL events. -->
+        <activity
+            android:name=".MugenActivity"
+            android:exported="false"
+            android:label="MUGEN"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"
+            android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation|density"
+            android:preferMinimalPostProcessing="true" />
     </application>
 </manifest>
