@@ -27,7 +27,7 @@ Depois do port, haverá uma segunda etapa de **alterações/novos recursos** (fa
 | P1 | Build Android (NDK/CMake/Gradle/CI) | CONCLUÍDA | `android/p1-build` @ 6b561ce (PR → `android/main`) | conversa P1 #1 + coordenadora | CI Android e Build Windows verdes no PR; APK rodou no aparelho (relatório em D-010). Pendente menor: o botão "Copy report" não aparece no app (ver LOG) |
 | P2 | Portabilidade do código (64 bits, Win32, `__stdcall`) | CONCLUÍDA | `android/p2-portabilidade` (run #9 do `android.yml` verde; `Build` Windows verde no lote 2) | conversa P2 #1 | `src/*.c` compila para arm64 pelo NDK (`mugen_core`, CI conta os `.o`); D-012 e D-013. Windows só foi verificado por compilação, não por execução |
 | P3a | Plataforma sem SDL (tempo, arquivos, log, erro) | CONCLUÍDA, falta só reconfirmar o auto-teste corrigido no aparelho (CI Android e Windows verdes) | `android/p3-plataforma` | conversa P3 #1 | Resolve D-002 (A, condicional) e D-005 (C); testes de host em `tests/platform`; D-014 |
-| P3b | SDL + ciclo de vida + boot (janela/superfície) | PRÓXIMA | — | — | Depende de P3a; inclui fecho de link de D-003 |
+| P3b | SDL + ciclo de vida + boot (janela/superfície) | EM ANDAMENTO (M1a escrita; falta CI e aparelho) | `android/p3b-sdl` | conversa P3b #1 | M1a: SDL2 2.32.10 + sdl12-compat vendorizados, SDLActivity, `SDL_main` de teste (D-015). Próximo: M1b só depois do resultado da M1a no aparelho; M1c, M2 (D-003), M3, M4 |
 | P4 | Áudio e BGM | não iniciada | — | — | |
 | P5 | Primeiro boot (renderer software → tela de título) | não iniciada | — | — | **Marco M1** |
 | P6 | Abstração de renderer | não iniciada | — | — | |

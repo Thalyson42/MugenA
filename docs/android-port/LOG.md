@@ -2,6 +2,34 @@
 
 Uma entrada por conversa (modelo em 04-modelos-de-conversa.md). Mais recente no topo.
 
+### 2026-11-25 · P3b · M1a — SDL2 + sdl12-compat vendorizados, SDLActivity e SDL_main · conversa P3b #1
+Estado da fase: P3b EM ANDAMENTO. **M1a: código pronto, CI Android e Build Windows ainda não rodaram; aparelho não testado.** M1b não foi começada (depende do resultado da M1a no aparelho).
+Branch/commit: android/p3b-sdl (a partir de android/main @ a402e5b), 3 commits `android(p3b): ...` (vendorização, integração, docs; `git log android/main..android/p3b-sdl`). **Sem push** (a conversa não tem credencial): entregue como `git format-patch` (3 arquivos; `git am`; o primeiro tem ~12 MB por causa do SDL2).
+Feito:
+- `third_party/SDL2` = release-2.32.10 (`5d24957`), `third_party/sdl12-compat` = `e5fdbd3`; só `src/`, `include/`, `cmake/`, `CMakeLists.txt` e os Java do SDLActivity (SDL2); poda e patches em cada `README-mugen.md`. Patches: `libSDL2.so` em `SDL12_compat.c` (`__ANDROID__`); `mHIDDeviceManager = null` em `SDLActivity.java` (SDL2 sem HIDAPI, para não precisar de C++). Versões e decisões em **D-015**.
+- `cmake/MugenAndroid.cmake`: `add_subdirectory(SDL2)` (→ `libSDL2.so`), alvo `SDL12` (→ `libSDL.so`), `mugen_sdl_probe` (objeto com `SDL_main`, único a ver os headers do SDL2), `libmugen.so` liga os dois com `LINK_ONLY` (nenhum header SDL entra nos `.c` do engine).
+- App: `MugenActivity : SDLActivity` (libs `SDL2`, `SDL`, `mugen`), entrada no manifest, `sourceSets` do Gradle para os Java do SDL2, botão "Run SDL probe (P3b, 20 s)" no `MainActivity`, que mostra `sdl-probe.txt` ao voltar.
+- `mugen_sdl_probe.c` (`SDL_main`, API SDL2): abre janela fullscreen + renderer com vsync, pinta cor/barra por 20 s, registra no logcat (tag `mugen-sdl`) versão, driver de vídeo, modo do display, tamanho da janela, renderer, eventos de ciclo de vida (`APP_*`, `WINDOWEVENT`, `RENDER_*_RESET`) e ms/quadro; escreve o mesmo em `<pasta de dados>/sdl-probe.txt`.
+- CI (`android.yml`): novo passo confere no APK `libSDL2.so`/`libSDL.so`/`libmugen.so`, as classes `SDLActivity` e `MugenActivity` no dex, `SDL_main` exportado, `NEEDED` de `libmugen.so`, que `libSDL.so` **não** liga `libSDL2.so` e que tem o nome `libSDL2.so` (e não `libSDL2-2.0.so.0`).
+Verificado aqui (sem NDK/aparelho): o SDL2 podado configura e compila inteiro no Linux (cmake 4.4/ninja, gcc; sem X11/Wayland/áudio de sistema, só para provar que a poda não quebrou referências do CMake); `SDL12_compat.c` compila no gcc e, com `-D__ANDROID__`, o objeto contém `libSDL2.so` e não o nome antigo; `mugen_sdl_probe.c` passa em `gcc -fsyntax-only -Wall -Wextra -D__ANDROID__` contra os headers do SDL2. **Não verificado:** SDL2 com o NDK r27, Kotlin/Gradle/manifest, carga das libs no aparelho, janela. O Build Windows não é tocado (só `third_party/SDL2|sdl12-compat` novos, `android/`, `cmake/MugenAndroid.cmake`, `.github/workflows/android.yml`, docs).
+Decisões tomadas (ids em 03-decisoes.md): D-015.
+Pendente / próximos passos (em ordem):
+1. Dono: aplicar os patches, dar push de `android/p3b-sdl` e mandar o resultado do **CI Android** (log do passo `assembleDebug` e do passo "Check the SDL stack in the APK") e do **Build Windows**. Pontos prováveis de falha: SDL2 + NDK (`cpu-features.c`, `-marm`), `getLibraries` em Kotlin, `compileSdk`/Java do SDL2.
+2. Dono: instalar o APK no A065M, tocar "Run SDL probe (P3b, 20 s)", **deixar rodar os 20 s e na segunda vez ir ao segundo plano e voltar**; colar o relatório do app (aparece ao voltar) e, se possível, `adb logcat -d -s mugen-sdl mugen SDL SDL/APP` do período. Esperado: `SDL_main entered`, `video driver: android`, `renderer: opengles2` (ou outro), janela 720x1600 (ou o tamanho do display), `presented N frames ... ms/frame` perto de 16,7, `SDL_main done`, e o app de diagnóstico de volta.
+3. Só então M1b (`SDL_SetVideoMode(640,480,16,SDL_HWSURFACE)` com quadro visível pela API 1.2, no mesmo `SDL_main`/arquivo de teste de outro objeto que veja os headers do SDL 1.2). Se M1b falhar: parar e decidir a reversão para (B) (D-002).
+Problemas conhecidos / armadilhas:
+- `libSDL.so` tem construtor que **aborta** o processo se não achar `libSDL2.so`; isso também derruba o app de diagnóstico (que carrega `libmugen.so`, que depende de `libSDL.so`). Se o app fechar na hora ao abrir, é isso: logcat `mugen-sdl`/`DEBUG`.
+- O patch de `SDLActivity.java` (HID) precisa ser reaplicado ao atualizar o SDL2.
+- O relatório antigo `sdl-probe.txt` é apagado ao tocar o botão; se o probe morrer antes de escrever, o app diz isso.
+- Desinstalar o app apaga `Android/data/<pacote>` (e o jogo copiado).
+- A tela é fullscreen sem `screenOrientation` fixo; a orientação segue o sensor (a decisão de retrato/paisagem fica para a M4).
+Como validar:
+- Host (poda do SDL2): `cmake -S third_party/SDL2 -B /tmp/b2 -G Ninja -DSDL_TEST=OFF -DSDL_X11=OFF -DSDL_WAYLAND=OFF -DSDL_KMSDRM=OFF -DSDL_PULSEAUDIO=OFF -DSDL_PIPEWIRE=OFF -DSDL_ALSA=OFF -DSDL_JACK=OFF -DSDL_SNDIO=OFF -DSDL_HIDAPI=OFF -DSDL_OPENGL=OFF -DSDL_OPENGLES=OFF -DSDL_VULKAN=OFF -DSDL_STATIC=OFF -DSDL_CCACHE=OFF && cmake --build /tmp/b2`.
+- Android: `cd android && ./gradlew assembleDebug`; `adb install -r app/build/outputs/apk/debug/app-debug.apk`; botão "Run SDL probe"; `adb logcat -s mugen-sdl mugen`.
+- Windows: `tools\msvc_env.bat cmake --preset x86-release` e `cmake --build --preset x86-release` (não deve mudar nada).
+Arquivos alterados: third_party/SDL2/** e third_party/sdl12-compat/** (novos), cmake/MugenAndroid.cmake, android/app/build.gradle.kts, android/app/src/main/{AndroidManifest.xml,cpp/mugen_sdl_probe.c,java/.../MainActivity.kt,java/.../MugenActivity.kt}, .github/workflows/android.yml, docs/android-port/{README,03-decisoes,LOG}.md
+Arquivos que a PRÓXIMA conversa (M1b) precisa receber: README.md, 03-decisoes.md (D-002, D-015), esta entrada, o log do CI Android e o relatório do app (`sdl-probe.txt`); do código, `android/app/src/main/cpp/mugen_sdl_probe.c` e `cmake/MugenAndroid.cmake`.
+
 ### 2026-11-25 · P3a · verificação no CI e no A065M (conversa P3 #1, continuação)
 Estado da fase: P3a **CONCLUÍDA** (auto-teste corrigido confirmado no A065M, ver "Fechamento" abaixo).
 Branch/commit: android/p3-plataforma @ 8c133fb (push pelo dono via `git am`) + commit de correção desta entrada.
