@@ -3,15 +3,17 @@
 Uma entrada por conversa (modelo em 04-modelos-de-conversa.md). Mais recente no topo.
 
 ### 2026-11-25 · P3a · verificação no CI e no A065M (conversa P3 #1, continuação)
-Estado da fase: P3a **CONCLUÍDA, aguardando confirmação do auto-teste corrigido no aparelho** (ver passo 1).
+Estado da fase: P3a **CONCLUÍDA** (auto-teste corrigido confirmado no A065M, ver "Fechamento" abaixo).
 Branch/commit: android/p3-plataforma @ 8c133fb (push pelo dono via `git am`) + commit de correção desta entrada.
 Verificado:
 - CI: `android.yml` verde (`assembleDebug` 1m35; testes de host passam no runner; `mugen_core` = 81 objetos; APK só `arm64-v8a`; `libmugen.so` exporta `initPlatform`/`platformSelfTest`/`testError`). `Build` Windows verde (153/153).
 - A065M (Android 16): app abre, diretório de dados `/storage/emulated/0/Android/data/io.github.thalyson42.mugen/files`, `mugen.log` criado pelo `Log_Init` real, `char` com sinal no `libmugen.so`, `File_Find`/`File_Exists` OK. Com o M.U.G.E.N copiado por `adb push`: `data\mugen.cfg`, `data\fight.def`, `chars`, `stages`, `font` achados. O botão "Copy report" apareceu (o `fitsSystemWindows` resolveu) e o diálogo de erro funciona (bytes não-UTF-8 viram `?`).
 - Tempo no A065M: `nanosleep(2 ms)` estoura 58–118 µs (média 70–89); `Timer_WaitFrame` 120 quadros a 60 fps = 1983,3–1983,5 ms (ideal 1983,3), 0 atrasados. O "cpu 109–117%" da primeira versão contava as threads do GL do app (`CLOCK_PROCESS_CPUTIME_ID`); agora mede só a thread.
 Achado: **o armazenamento emulado (`/storage/emulated/0`) ignora a caixa**; o resolvedor nem precisa agir ali (o `stat` do caminho como está já acha). As 2 falhas do auto-teste eram suposição minha (esperava a grafia corrigida e a ausência de `SOUND`), não bug. O auto-teste agora detecta o tipo de sistema de arquivos e roda também na pasta de cache do app (case-sensitive, caminhos absolutos). Onde o resolvedor realmente importa: `filesDir` (fallback), e qualquer pasta que a P11 copie para o armazenamento interno.
-Pendente:
-1. Reinstalar o APK com a correção e colar o relatório: esperado `RESULT: 20 checks, 0 failed`, com "case-INSENSITIVE" para a pasta de dados e "case-sensitive" para o cache.
+Fechamento (2026-11-25, A065M + `android.yml` do commit 45a4c53): auto-teste `RESULT: 19 checks, 0 failed` (19 e não 20: onde o sistema de arquivos ignora a caixa, a checagem "sem segundo diretório" é pulada). Pasta de dados detectada como case-INSENSITIVE, cache do app como case-sensitive, ambos 100%. Com o M.U.G.E.N 1.1b1 copiado por `adb push`: `data\mugen.cfg`, `data\fight.def`, `chars`, `stages`, `font` achados (`sound` não existe na raiz do 1.1b1); 15 entradas na raiz. `nanosleep(2 ms)` estoura 60–100 µs; `Timer_WaitFrame` 120 quadros = 1983,3 ms, 0 atrasados, 2% de CPU na thread. CI: `BUILD SUCCESSFUL`, 81 objetos de `mugen_core`, `libmugen.so` contém `Mugen_fopen`, `Mugen_ResolvePath`, `Timer_WaitFrame`, `Log_Init`, `File_Find`.
+Armadilha de teste: desinstalar o app apaga `Android/data/<pacote>`; refazer o `adb push` depois de reinstalar.
+Pendente (o item 1 original foi cumprido):
+1. ~~Reinstalar o APK com a correção~~ e colar o relatório: esperado `RESULT: 20 checks, 0 failed`, com "case-INSENSITIVE" para a pasta de dados e "case-sensitive" para o cache.
 2. `TIMER_SPIN_NS` (0,5 ms) está folgado frente ao estouro medido (<0,12 ms); pode cair para 0,25 ms na P5 se o consumo importar.
 3. Conferir no `android.yml` que o passo 10 acha a cópia sem strip e lista `Mugen_fopen`, `Timer_WaitFrame`, `Log_Init`, `File_Find` (antes imprimiu `nm: '': No such file`).
 4. P3b.
