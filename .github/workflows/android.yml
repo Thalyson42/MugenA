@@ -37,6 +37,14 @@ jobs:
           test "$(unzip -l "$apk" | grep -c 'lib/arm64-v8a/libmugen.so')" = 1
           test "$(unzip -l "$apk" | grep -E 'lib/' | grep -vc 'lib/arm64-v8a/')" = 0
 
+      - name: Check that the engine sources were compiled (mugen_core, P2)
+        run: |
+          # AGP hides the ninja output, so count the object files: 81 src/*.c + platform_posix.c.
+          n=$(find android/app/.cxx -path '*mugen_core.dir*' -name '*.o' | wc -l)
+          echo "mugen_core objects: $n"
+          find android/app/.cxx -path '*mugen_core.dir*' -name '*.o' | sort | head -3
+          test "$n" -ge 82
+
       - uses: actions/upload-artifact@v4
         with:
           name: mugen-unleashed-android-debug
