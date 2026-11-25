@@ -206,7 +206,7 @@ Stream *Stream_OpenZip(const char *zip_path, const char *name)
         return NULL;
     }
     s->type = STREAM_ZIP;
-    s->zip = unzOpen(zip_path);
+    s->zip = unzOpen(MUGEN_PATH(zip_path));
     if (s->zip == NULL) {
         g_streamError = STREAM_ERR_OPEN;
     } else if (Stream_ZipLoad(s, name)) {

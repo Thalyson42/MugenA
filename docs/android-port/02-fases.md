@@ -46,16 +46,29 @@ Regra para trabalho paralelo: cada conta em sua branch `android/p<n>-<tema>`; s�
 **Levar:** `src/mugen.h`, `src/symbols.h`, `src/crt.h`, `src/ftol.h`, `src/game.h`, `src/char.h`, `src/player.h`, `src/sctrl.h`, `src/error.c`, `src/matchload.c`, `src/timer.c`, `src/system.c` (trechos Win32), mais a lista de erros de compilação gerada pelo CI da P1.
 **Pronto quando:** compila `src/*.c` para `arm64-v8a` sem erros; build x86 Windows idêntico em comportamento (log).
 
-## P3 — Camada de plataforma (janela, eventos, tempo, arquivos)
-**Objetivo:** o engine inicia no Android até criar janela/superfície e ler arquivos.
+## P3 — Camada de plataforma (janela, eventos, tempo, arquivos) — dividida em P3a e P3b
+*Dividida na conversa P3 #1 (2026-11-25): "janela no Android" arrasta o fecho de link de D-003 (SDL_mixer, SDL_ttf, SDL_gfx, libresample, mpg123; o NDK liga com `--no-undefined`), o SDLActivity e validação só no aparelho; a parte sem SDL pode ser testada no host.*
+
+### P3a — Plataforma sem SDL (tempo, arquivos, log, erro) — feita na conversa P3 #1
+**Objetivo:** camada de arquivos/tempo/log do Android, com testes de host, rodando no `libmugen.so`; D-002 e D-005 decididas.
 **Tarefas:**
-1. Implementar D-002 (sdl12-compat ou SDL2): `video.c`, `sdlmain.c`, `system.c` (título/foco), `events.c`.
-2. `timer.c` com `clock_gettime`; `Sleep` → `nanosleep`.
-3. `file.c`: normalizar `\`, resolução de caminho **insensível a caixa** com cache de diretório; diretório de dados (D-005).
-4. `log.c`/`error.c`: log via `__android_log_print` + arquivo; diálogo de erro (substituto de `DialogBoxParamA`).
-5. Ciclo de vida: callbacks de pause/resume/terminate chegando ao loop (`gameloop.c`).
-**Levar:** `src/video.c`, `src/system.c`, `src/sdlmain.c`, `src/main.c`, `src/events.c`, `src/frame.c`, `src/gameloop.c`, `src/timer.c`, `src/file.c`, `src/stream.c`, `src/ini.c`, `src/log.c`, `src/error.c`, `src/config.c`, `src/cmdline.c`, `src/platform/*`.
-**Pronto quando:** app abre, loga `mugen.log` no diretório definido e encontra arquivos do jogo ignorando caixa.
+1. `timer.c` com `clock_gettime`/`nanosleep` (espera de quadro dormindo até 0,5 ms antes e girando o resto).
+2. `file.c`/`fopen`: `\`→`/`, resolução **insensível a caixa** com cache de diretório (`src/platform/platform_path.c`); diretório de dados (D-005, `Mugen_SetDataDir`).
+3. `log.c`/`error.c`: logcat + `mugen.log`; stdout/stderr para o logcat; tela de erro (AlertDialog via JNI, substitui `DialogBoxParamA`).
+4. `-fsigned-char` e demais flags do engine também no `libmugen.so`; `libmugen.so` liga a plataforma + `timer/log/file/textring/util` reais (`mugen_p3a`, temporário).
+5. Spike **estático** de D-002 (símbolos SDL 1.2 do engine × exportados pelo `sdl12-compat`).
+**Pronto quando:** testes de host verdes (`tests/platform`); CI Android verde; o auto-teste no aparelho (botão do app) passa, grava `mugen.log` no diretório de dados e acha arquivos do jogo ignorando caixa.
+
+### P3b — SDL + ciclo de vida + boot  *(próxima)*
+**Objetivo:** o engine inicia no Android até criar janela/superfície.
+**Tarefas:**
+1. Implementar D-002 (A): SDL2 + `sdl12-compat` vendorizados (patch do nome do `dlopen`), `SDLActivity` e `SDL_main`; `video.c`, `sdlmain.c`, `system.c` (título/foco), `events.c`. Trocar os headers SDL do SDK Windows (D-013) pelos do `sdl12-compat`.
+2. Fecho de link de D-003 (decidir e incluir SDL_mixer, SDL_ttf, SDL_gfx, libresample, mpg123; ou stubs temporários) e ligar `mugen_core` no `libmugen.so`; **remover** `mugen_p3a` e `mugen_p3a_support.c`.
+3. Ciclo de vida: `SDL_ACTIVEEVENT` (foco perdido/ganho, vindo do pause/resume do SDL2) até `Events_Poll`/`g_onActivate`/`gameloop.c`; `Timer_Reset` ao voltar; terminate.
+4. Envolver o que a P3a não cobriu: `remove`/`rename`/`freopen` (`sdlmain.c`, `system.c`), `Mugen_StdioToLog` no início do app.
+5. Verificar **em execução** as condições de D-002 (superfície de 16 bpp do `SDL_SetVideoMode`, apresentação, contexto GLES).
+**Levar:** `src/video.c`, `src/system.c`, `src/sdlmain.c`, `src/main.c`, `src/events.c`, `src/frame.c`, `src/gameloop.c`, `src/stream.c`, `src/ini.c`, `src/config.c`, `src/cmdline.c`, `src/platform/*`, `cmake/MugenAndroid.cmake`, `android/**`.
+**Pronto quando:** app abre uma janela/superfície 16 bpp pelo engine e roda o loop sem travar ao ir para segundo plano e voltar.
 
 ## P4 — Áudio e BGM  *(paralelizável)*
 **Objetivo:** efeitos sonoros e música tocando.

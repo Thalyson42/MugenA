@@ -16,19 +16,23 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import kotlin.concurrent.thread
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 /**
- * Phase P1 diagnostic app: reports the device facts that decision D-010 asks for (Android version, ABI,
- * GLES, Vulkan features, screen, RAM) and the versions of the libraries linked into libmugen.so.
- * The report is shown, logged (tag "mugen-diag") and can be copied to paste into docs/android-port/03-decisoes.md.
+ * Diagnostic app. P1: reports the device facts that decision D-010 asks for (Android version, ABI, GLES, Vulkan
+ * features, screen, RAM) and the versions of the libraries linked into libmugen.so. P3a: also sets the data directory
+ * of the engine (D-005) and runs the self-test of the platform layer. The report is shown, logged (tag "mugen-diag")
+ * and can be copied to paste into docs/android-port/03-decisoes.md or LOG.md.
  */
 class MainActivity : Activity() {
     private lateinit var report: TextView
     private var deviceInfo = ""
     private var glInfo = "GLES: (waiting for the GL context)"
     private var nativeInfo = ""
+    private var platformInfo = "P3a self-test: running..."
+    private var dataDir = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,7 +44,36 @@ class MainActivity : Activity() {
         }
         deviceInfo = collectDeviceInfo()
 
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        // D-005: the game's files live in the app's own folder. getExternalFilesDir is /sdcard/Android/data/<package>/files
+        // (needs no permission); the internal folder is only a fallback when there is no external storage.
+        dataDir = (getExternalFilesDir(null) ?: filesDir).absolutePath
+        val platformReady = try {
+            Native.initPlatform(dataDir)
+        } catch (e: Throwable) {          // libmugen.so did not load (UnsatisfiedLinkError, ExceptionInInitializerError)
+            false
+        }
+        if (platformReady) {
+            thread(name = "p3a-selftest") {
+                val result = try { Native.platformSelfTest(cacheDir.absolutePath) } catch (e: Throwable) { "P3a self-test crashed: $e" }
+                runOnUiThread {
+                    platformInfo = result
+                    refresh()
+                }
+            }
+        } else {
+            platformInfo = "P3a: initPlatform failed for $dataDir"
+        }
+
+        // targetSdk 35 draws edge to edge: without this the buttons sit under the status bar (the P1 "Copy report" bug,
+        // not yet confirmed on the device).
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            fitsSystemWindows = true
+        }
+        val errorButton = Button(this).apply {
+            text = "Test error dialog"
+            setOnClickListener { thread(name = "p3a-error") { Native.testError() } }
+        }
         val copy = Button(this).apply {
             text = "Copy report"
             setOnClickListener {
@@ -80,6 +113,7 @@ class MainActivity : Activity() {
         }
 
         root.addView(copy)
+        root.addView(errorButton)
         root.addView(gl, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 4))
         root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
@@ -92,7 +126,19 @@ class MainActivity : Activity() {
         Log.i("mugen-diag", text)
     }
 
-    private fun fullReport() = "$deviceInfo\n\n$glInfo\n\n--- libmugen.so ---\n$nativeInfo"
+    private fun fullReport() =
+        "$deviceInfo\n\n$glInfo\n\n--- libmugen.so ---\n$nativeInfo\n\n--- data directory (D-005) ---\n$dataDir\n" +
+            "Copy the M.U.G.E.N 1.1b1 files here (data, chars, stages, sound, font...).\n\n$platformInfo"
+
+    override fun onResume() {
+        super.onResume()
+        Native.activity = this
+    }
+
+    override fun onPause() {
+        if (Native.activity === this) Native.activity = null
+        super.onPause()
+    }
 
     private fun getprop(name: String): String = try {
         val p = ProcessBuilder("getprop", name).redirectErrorStream(true).start()

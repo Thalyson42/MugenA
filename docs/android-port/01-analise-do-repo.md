@@ -54,7 +54,7 @@ O engine mantém texturas e render targets (`GlTex`, `GlVbuf`) em cache → é p
 de caminho insensível a caixa + normalização de `\` (cache de diretório). Dados ficam em armazenamento escopado:
 SAF ou diretório do app (ver D-005).
 
-**R6 — SDL 1.2 não tem porte Android oficial.** Opções em D-002 (sdl12-compat sobre SDL2 **(hipótese: funciona com
+**R6 — SDL 1.2 não tem porte Android oficial.** Opções em D-002 (sdl12-compat sobre SDL2 **(hipótese, confirmada só por leitura de código na P3a, ver D-002: funciona com
 `SDL_OPENGL` no Android — verificar)**, ou migrar direto para SDL2 mexendo em ~28 arquivos que usam SDL).
 
 **R7 — Desempenho.** Engine de 2D/CPU pesada em celulares (software renderer RGB565, resampler, IA). Medir cedo (P5).

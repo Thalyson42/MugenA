@@ -21,6 +21,13 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Host tests of the platform layer (P3a)
+        run: |
+          # Real timer.c/log.c/file.c + src/platform/*.c on the runner (Linux): path resolution, data dir, log, pacing.
+          cmake -S tests/platform -B build/platform-tests -G Ninja
+          cmake --build build/platform-tests
+          ctest --test-dir build/platform-tests --output-on-failure
+
       - name: Android SDK components (NDK r27 LTS, CMake 3.22.1)
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
@@ -39,11 +46,23 @@ jobs:
 
       - name: Check that the engine sources were compiled (mugen_core, P2)
         run: |
-          # AGP hides the ninja output, so count the object files: 81 src/*.c + platform_posix.c.
+          # AGP hides the ninja output, so count the object files: the 81 src/*.c of mugen_core (the platform layer is the
+          # static library mugen_platform since P3a).
           n=$(find android/app/.cxx -path '*mugen_core.dir*' -name '*.o' | wc -l)
           echo "mugen_core objects: $n"
           find android/app/.cxx -path '*mugen_core.dir*' -name '*.o' | sort | head -3
-          test "$n" -ge 82
+          test "$n" -ge 81
+
+      - name: Check that libmugen.so carries the platform layer and the P3a engine subset
+        run: |
+          # The JNI entry points are in the dynamic symbol table (also in the stripped copy inside the APK).
+          so=$(find android/app/build -path '*arm64-v8a*' -name libmugen.so | head -1)
+          test -n "$so"
+          nm -D --defined-only "$so" | grep -E 'Java_io_github_thalyson42_mugen_Native_(initPlatform|platformSelfTest|testError)'
+          # The engine's own functions are local symbols: only the unstripped copy under .cxx has them (informational).
+          full=$(find android/app/.cxx android/app/build/intermediates/cxx -path '*arm64-v8a*' -name libmugen.so 2>/dev/null | head -1)
+          echo "unstripped copy: $full"
+          test -z "$full" || nm "$full" | grep -E ' [Tt] (Mugen_fopen|Mugen_ResolvePath|Timer_WaitFrame|Log_Init|File_Find)$' | sort -u || true
 
       - uses: actions/upload-artifact@v4
         with:

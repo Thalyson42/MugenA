@@ -228,12 +228,12 @@ int Error_ShowDialog(const char *text, const char *title)
 #else /* !MUGEN_PLATFORM_WIN32 */
 
 /*
- * Android: there is no Win32 dialog (dialog resource 200 and the rich edit are Windows only).
- * TODO(P3): a real error screen; for now the text goes to stderr.
+ * Android: there is no Win32 dialog (dialog resource 200 and the rich edit are Windows only). The text goes to
+ * logcat and, when the app has set a handler (Mugen_SetErrorHandler), to an AlertDialog; returns once dismissed.
  */
 int Error_ShowDialog(const char *text, const char *title)
 {
-    fprintf(stderr, "%s: %s\n", title, text);
+    Mugen_ShowError(title, text);
     return 0;
 }
 

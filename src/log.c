@@ -91,6 +91,27 @@ void Log_SetMirror(TextRing *ring)
     log->owns_mirror = 1;
 }
 
+#if defined(MUGEN_PLATFORM_ANDROID)
+/* Android (P3a): the same text also goes to logcat (tag "mugen"), without the final newline of the line. */
+static void Log_ToSystem(const char *text)
+{
+    char line[LOG_LINE_SIZE];
+    size_t len = strlen(text);
+
+    if (len >= sizeof(line)) {
+        len = sizeof(line) - 1;
+    }
+    memcpy(line, text, len);
+    while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) {
+        --len;
+    }
+    line[len] = '\0';
+    if (len > 0) {
+        Mugen_LogWrite(0, line);
+    }
+}
+#endif
+
 /* 0x0046C320 */
 void Log_VWrite(Log *log, va_list ap, int level, const char *fmt)
 {
@@ -102,6 +123,11 @@ void Log_VWrite(Log *log, va_list ap, int level, const char *fmt)
     _vsnprintf(buf, LOG_LINE_SIZE - 1, fmt, ap);
     buf[LOG_LINE_SIZE - 1] = '\0';
     fprintf(log->fp, "%s", buf);
+#if defined(MUGEN_PLATFORM_ANDROID)
+    if (log == g_log) {     /* the status log only; the match log (-log) can be huge */
+        Log_ToSystem(buf);
+    }
+#endif
     if (log->autoflush) {
         fflush(log->fp);
     }

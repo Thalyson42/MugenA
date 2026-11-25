@@ -5,7 +5,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="MUGEN (P1 diag)"
+        android:label="MUGEN (diag)"
         android:theme="@android:style/Theme.DeviceDefault.Light">
         <activity
             android:name=".MainActivity"
