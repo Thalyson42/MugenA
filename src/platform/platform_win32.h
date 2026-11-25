@@ -9,4 +9,7 @@
 #include <mmsystem.h>   /* timeGetTime, timeBeginPeriod, timeEndPeriod */
 #include <direct.h>     /* _chdir, _getcwd */
 
+/* Paths need no resolution on Windows (case-insensitive file system); see platform_posix.h for Android. */
+#define MUGEN_PATH(path)   (path)
+
 #endif /* MUGEN_PLATFORM_WIN32_H */

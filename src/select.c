@@ -482,7 +482,7 @@ int Select_LoadDef(void)
                 goto failed;
             }
             zs->type = STREAM_ZIP;
-            zs->zip = unzOpen(zip);
+            zs->zip = unzOpen(MUGEN_PATH(zip));
             if (zs->zip == NULL) {
                 g_streamError = STREAM_ERR_OPEN;
                 free(zs);

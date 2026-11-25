@@ -430,7 +430,7 @@ int Lua_Panic(struct lua_State *L)
  */
 int Lua_RunInit(void)
 {
-    int r = luaL_loadfile(g_luaState, "data/init.lua");
+    int r = luaL_loadfile(g_luaState, MUGEN_PATH("data/init.lua"));
 
     if (r == 0) {
         r = lua_pcall(g_luaState, 0, 0, 0);

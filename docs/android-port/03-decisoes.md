@@ -10,18 +10,24 @@ Nunca apague uma decisão: se mudar, crie uma nova que a substitui e marque a an
 revisados na P2 (casts ponteiro↔int, ponteiros em campos de 4 bytes, `Trunc64`). Testes diferenciais contra o Windows comparam
 **comportamento** (`mugen.log`, saídas), não layout de memória.
 
-## D-002 · Camada SDL no Android — ABERTA
+## D-002 · Camada SDL no Android — DECIDIDA (2026-11-25, condicional à verificação em execução na P3b)
 **Contexto:** o engine usa SDL 1.2 em ~28 arquivos; SDL 1.2 não tem porte Android oficial.
 **Opções:** (A) `sdl12-compat` sobre SDL2 (menos mudanças; **verificar** suporte a `SDL_OPENGL`/EGL no Android e a API de
 `SDL_SetVideoMode`/superfície de 16 bpp usada pelo renderer software). (B) migrar o código para SDL2 direto (mais trabalho, mais controle,
 necessário de qualquer forma para Vulkan via `SDL_Vulkan`). (C) camada própria de plataforma sobre NativeActivity/EGL.
 **Recomendação provisória:** decidir na P3 após um spike de 1 dia com (A); se falhar, (B).
-**Decisão final:** _pendente_
+**Decisão final:** **(A) `sdl12-compat` sobre SDL2**, com (B) como plano de reserva. Spike estático da P3a (sem NDK nem aparelho; só leitura de código):
+- Todas as **44** funções `SDL_*` que `src/*.c` chamam estão em `src/SDL12.exports` do `sdl12-compat` (commit `e5fdbd3`, 2026-11-20); a 45ª, `SDL_main`, é a convenção de entrada do app. `SDL_GetWMInfo`/`SDL_SetModuleHandle`/`SDL_VIDEODRIVER` só aparecem em trechos Win32.
+- Foco/segundo plano chegam como `SDL_ACTIVEEVENT` (do `SDL_WINDOWEVENT_FOCUS_*`/`MINIMIZED`/`RESTORED`), que `Events_Poll` já trata (`g_onActivate`). O compat não define perfil de contexto GL, então no Android sai o contexto GLES padrão do SDL2 (coerente com D-007; GL de função fixa não funciona, o que só importa a partir da P7).
+- `SDL_GL_SWAP_CONTROL` é traduzido pelo compat.
+**Condições para a P3b** (o spike não prova execução): (1) o compat carrega o SDL2 por `dlopen("libSDL2-2.0.so.0")` (caminho `__unix__`); no APK a lib é `libSDL2.so` → **patch de uma linha** em `SDL20_LIBNAME` para `__ANDROID__` (código zlib, vendorizar em `third_party/`); (2) o SDL2 no Android exige o `SDLActivity` (Java) e `SDL_main` em `libmugen.so`; (3) `SDL_SetVideoMode(w,h,16,SDL_HWSURFACE)` tem de dar uma superfície RGB565 utilizável e a apresentação (textura do SDL2) não pode custar mais do que o orçamento de quadro no A065M; o escalonamento 640x480 → 720x1600 precisa de letterbox.
+**Reverter para (B)** se (3) falhar, ou se o compat perder o contexto/superfície ao voltar do segundo plano de forma que não dê para contornar. SDL2: versão estável 2.x mais recente a fixar na P3b.
 
 ## D-003 · Bibliotecas sem fonte no repo — ABERTA
 SDL_mixer, SDL_ttf (+FreeType), SDL_gfx (`zoomSurface`), zlib, libresample, libmpg123. Definir fonte/versão de cada uma
 (preferir as de mesma versão do original ou compatíveis) e como entram no build (submódulo, FetchContent ou `third_party/`).
 **Decisão final:** _pendente_
+**Achado da P3a (sem decidir):** o que o engine chama fora do SDL: SDL_mixer 25 funções, entre elas `Mix_QuerySpecEx` (**não existe no SDL_mixer 1.2 padrão**: o original usa uma versão modificada; ver `sound.c`), SDL_ttf 8 (`TTF_RenderUTF8_*`, `TTF_SizeUTF8`...), SDL_gfx só `zoomSurface` (`font.c`), libresample 6, e nenhuma chamada `mpg123_` direta em `src/*.c`. O SDL_mixer 1.2 compila sobre o `sdl12-compat` (é só API SDL 1.2). Decidir na P3b/P4.
 **Progresso na P1 (sem decidir):** entram no build Android, a partir de `third_party/`, Lua 5.1.4, libpng 1.2.38, minizip 0.15, cgltf e stb_image;
 zlib vem do NDK (ver D-011). SDL/SDL_mixer/SDL_ttf/SDL_gfx/libresample/libmpg123 **não** entram na P1: dependem de D-002 e há um `TODO(P3)` em `cmake/MugenAndroid.cmake`.
 
@@ -32,12 +38,13 @@ CMake 3.22.1 (do SDK), AGP 8.7.3, Gradle 8.9, Kotlin 2.0.21, JDK 17. **A revisar
 (provavelmente mais alto que 35) e o NDK/AGP mais novos; a P1 só gera APK debug.
 **Decisão final:** _pendente_
 
-## D-005 · Onde ficam os dados do jogo — ABERTA
+## D-005 · Onde ficam os dados do jogo — DECIDIDA (2026-11-25): C na P3, A na P11
 (A) Pasta escolhida via SAF e cópia para armazenamento interno do app (simples e rápido, duplica espaço).
 (B) Acesso direto via SAF (sem cópia) — exige camada de I/O sobre descritores; difícil com `fopen`.
 (C) `Android/data/<pkg>/files` (pasta específica do app; usuário copia os arquivos).
 **Recomendação provisória:** C como primeiro passo (P3), A como UX final (P11).
-**Decisão final:** _pendente_
+**Decisão final:** **(C) agora, (A) na P11; (B) descartada** (`fopen` não funciona sobre SAF). O app chama `getExternalFilesDir(null)` (`/sdcard/Android/data/io.github.thalyson42.mugen/files`, sem permissão em nenhuma versão; cai em `filesDir` se não houver armazenamento externo) e passa o caminho ao nativo (`Native.initPlatform`). `Mugen_SetDataDir` faz `chdir` nele: os caminhos relativos do engine (`data/mugen.cfg`, `chars/...`) e o `mugen.log` ficam ali, como no Windows. O jogo é copiado **direto** nessa pasta (`data`, `chars`, `stages`, `sound`, `font` na raiz dela), por exemplo `adb push <pasta do M.U.G.E.N>/. /sdcard/Android/data/io.github.thalyson42.mugen/files/`. O app de diagnóstico mostra o caminho.
+**Risco, não verificado no A065M (Android 16):** a partir do Android 11 apps de terceiros não navegam em `Android/data`; pelo cabo (MTP/adb) funciona, e o gerenciador de arquivos da Samsung costuma conseguir. A cópia via SAF da P11 resolve isso para o usuário final.
 
 ## D-006 · Licenças e linkagem — ABERTA
 Várias bibliotecas são LGPL (SDL 1.2/mixer, mpg123, pthreads-win32 só no Windows). Em Android tudo é `.so` ou estático:
@@ -103,6 +110,14 @@ Só entram no caminho de include do `mugen_core` (Android); nenhum está no do W
 - `src/platform/sdl_config_posix.h`: configuração do SDL 1.2 com base em `<stdint.h>`. Os headers de `third_party/sdk/include/SDL` são do SDK Windows e, fora do Windows, `SDL_config.h` cai em `SDL_config_minimal.h`, que redefine `size_t` e os tipos inteiros e quebra em 64 bits. Sai na P3 com D-002.
 - `src/platform/stubs/libresample.h`: redireciona ao header do SDK removendo `__declspec`. Sai quando o libresample for compilado do fonte (D-003).
 - `model.c` usa o `glew.h` direto; o único conflito era o tipo de `__glewDeleteRenderbuffersEXT` (`symbols.h`, agora com `const` como no GLEW), que também some um aviso do MSVC.
+
+## D-014 · Plataforma sem SDL: arquivos, tempo, log, erro (P3a) — DECIDIDA
+1. **Todo `fopen` do engine passa por `Mugen_fopen`** (`#define fopen` em `platform_posix.h`, depois do `<stdio.h>`; o Windows não muda). Nos outros pontos que recebem caminho há `MUGEN_PATH(p)` (no Windows é `(p)`): `unzOpen` (`select.c`, `stream.c`), `TTF_OpenFont` (`font.c`), `luaL_loadfile` (`luaapi.c`). Não envolvidos ainda (P3b): `remove`, `rename`, `freopen`.
+2. **Regras de `platform_path.c`:** `\`→`/`, `//` colapsa, barra final cai; tenta o caminho como está (1 `stat`) e só então resolve componente a componente ignorando caixa **ASCII** (o Windows também iguala outras letras da página de código: nomes com letras não-ASCII que diferem só na caixa não casam). Com duas entradas que diferem só na caixa, vale a grafia exata; senão a menor por `strcmp`. `.` e `..` não são pesquisados; o que não existe fica como escrito (permite criar arquivo em diretório existente com a caixa corrigida). Cache de 64 diretórios, revalidado por inode+mtime+tamanho a cada uso; arquivo criado por `Mugen_fopen` invalida o diretório. Thread-safe (thread de BGM).
+3. **Tempo:** `Timer_WaitFrame` no Android dorme até 0,5 ms antes do quadro (`nanosleep`) e gira o resto, em vez de girar até 2 ms por quadro; o cronograma de quadros não muda. `CLOCK_MONOTONIC`. Ao voltar do segundo plano a P3b deve chamar `Timer_Reset`.
+4. **Log/erro:** o log de status (`g_log`, não o de partida) também vai ao logcat (tag `mugen`); `Mugen_StdioToLog` manda `printf`/`stderr` ao logcat; `Error_ShowDialog` → `Mugen_ShowError` (logcat + gancho; o app instala um `AlertDialog` que bloqueia a thread do engine até o OK). Textos passam por sanitização para UTF-8 antes do JNI (Shift-JIS derrubaria o CheckJNI).
+5. **`libmugen.so`** recebe as mesmas flags de `mugen_core` (`-fsigned-char -ffp-contract=off -fno-strict-aliasing` + erros de ponteiro↔int) por `MUGEN_ANDROID_ENGINE_FLAGS`; o auto-teste verifica `char` com sinal dentro dele. `mugen_platform` (estática) é a plataforma; `mugen_p3a` (estática, **temporária**) são `timer/log/file/textring/util` reais + `mugen_p3a_support.c` (globais e stubs que o resto do engine daria). Na P3b sai `mugen_p3a` e entra `mugen_core`.
+6. O CI conta agora 81 objetos de `mugen_core` (a plataforma saiu dele) e roda os testes de host (`tests/platform`).
 
 ### D-010 · Relatório do aparelho de teste (colado pelo dono em 2026-11-24, app de diagnóstico da P1)
 | Item | Valor |

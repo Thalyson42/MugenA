@@ -14,6 +14,10 @@
 
 #include "mugen.h"
 
+#if defined(MUGEN_PLATFORM_ANDROID)
+#define TIMER_SPIN_NS 500000LL      /* the last half millisecond of a frame wait is spent spinning */
+#endif
+
 /* Current time relative to g_timerStart (inlined everywhere in the original). */
 static MUGEN_INT64 Timer_Count(void)
 {
@@ -133,11 +137,24 @@ MUGEN_INT64 Timer_GetFrameTimeLeft(void)
 int Timer_WaitFrame(void)
 {
     MUGEN_INT64 behind;
+#if defined(MUGEN_PLATFORM_ANDROID)
+    /*
+     * Android (P3a): the clock counts nanoseconds and nanosleep is accurate to well under a millisecond, so sleep
+     * until TIMER_SPIN_NS before the frame is due and spin only for the rest, instead of spinning for up to 2 ms
+     * every frame (heat and battery on a phone). The frame schedule itself is unchanged.
+     */
+    MUGEN_INT64 left_ns = Timer_GetFrameTimeLeft() * 1000000000LL / g_timerFrequency;
+
+    if (left_ns > TIMER_SPIN_NS) {
+        Mugen_SleepNs(left_ns - TIMER_SPIN_NS);
+    }
+#else
     int ms = (int)(Timer_GetFrameTimeLeft() * 1000 / g_timerFrequency);
 
     if (ms > 2) {
         Sleep(ms - 1);
     }
+#endif
     while (Timer_GetFrameTimeLeft() > 0) {
     }
     behind = Timer_GetFrame() - g_timerFrame;

@@ -879,10 +879,10 @@ Font *Font_LoadDef(Stream *s, const char *dir, int height)
             return NULL;
         }
     } else if (font->type == FONT_TYPE_TRUETYPE) {
-        font->ttf = TTF_OpenFont(path, font->size_h);
+        font->ttf = TTF_OpenFont(MUGEN_PATH(path), font->size_h);
         if (font->ttf == NULL && g_systemFontDirPtr != NULL) {
             Path_Join(file, g_systemFontDirPtr, path);
-            font->ttf = TTF_OpenFont(path, font->size_h);
+            font->ttf = TTF_OpenFont(MUGEN_PATH(path), font->size_h);
         }
         if (font->ttf == NULL) {
             goto fail;

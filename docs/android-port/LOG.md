@@ -2,6 +2,37 @@
 
 Uma entrada por conversa (modelo em 04-modelos-de-conversa.md). Mais recente no topo.
 
+### 2026-11-25 · P3a — Plataforma sem SDL · conversa P3 #1
+Estado da fase: EM ANDAMENTO (código e testes de host prontos; **CI Android e auto-teste no aparelho ainda não rodaram**). P3 foi dividida em P3a/P3b (ver 02-fases.md).
+Branch/commit: android/p3-plataforma @ <hash do push; ver `git log`>
+Feito:
+- `src/platform/platform_path.c` (novo): `Mugen_fopen`/`Mugen_ResolvePath`/`MUGEN_PATH`, `\`→`/` e caixa ignorada com cache de diretório (regras em D-014); `fopen` do engine redirecionado em `platform_posix.h`; `unzOpen`, `TTF_OpenFont` e `luaL_loadfile` com `MUGEN_PATH`.
+- `src/platform/platform_app.c` (novo): diretório de dados (`Mugen_SetDataDir` = chdir), `Mugen_LogWrite` (logcat), `Mugen_StdioToLog`, `Mugen_ShowError`/gancho, `Mugen_SleepNs`.
+- `timer.c` (espera de quadro Android), `log.c` (espelha o log de status no logcat), `error.c` (`Error_ShowDialog` → `Mugen_ShowError`).
+- CMake: `MUGEN_ANDROID_ENGINE_FLAGS` (inclui `-fsigned-char`) em todos os alvos, `mugen_platform`, `mugen_p3a` (temporário) e `libmugen.so` ligando ambos. JNI: `initPlatform`, `platformSelfTest`, `testError`, `showError` (Kotlin, AlertDialog). App: define o diretório de dados, roda o auto-teste em thread, botão "Test error dialog", `fitsSystemWindows` (tentativa de corrigir o botão "Copy report" escondido).
+- `tests/platform` (novo, só host): roda `timer.c`, `log.c`, `file.c` reais + a plataforma. CI roda no `android.yml`; contagem de objetos de `mugen_core` agora >= 81.
+- D-002 **decidida** (A, condicional), D-005 **decidida** (C agora, A na P11), D-014 nova, achados para D-003 (ver 03-decisoes.md).
+Verificado (aqui, sem NDK/aparelho): testes de host 73 verificações, 0 falhas, no clang e no gcc com ASan+UBSan, e TSan sem avisos; `mugen_core` (81 `src/*.c`) compila com `fopen` redirecionado pelo CMake real; as sources novas compilam sem avisos (`-Wall -Wextra`); o mesmo auto-teste do aparelho rodou no host contra uma pasta de jogo falsa (11/11). Não verificado: NDK/Gradle/Kotlin (nunca compilados aqui), JNI (`AttachCurrentThread` usa a assinatura do NDK, `JNIEnv**`), Windows (só por inspeção: nos arquivos compartilhados o Windows só ganha `MUGEN_PATH(p)` = `(p)`).
+Decisões tomadas (ids em 03-decisoes.md): D-002, D-005, D-014.
+Pendente / próximos passos (em ordem):
+1. Push feito; **conferir `android.yml` e `Build` Windows verdes** (primeira vez que o `libmugen.so` liga `mugen_p3a`; se faltar símbolo, é o `mugen_p3a_support.c`).
+2. Instalar o APK no A065M, tocar nada: o relatório do auto-teste aparece na tela; copiar e colar aqui. Para o teste de arquivos: `adb push <M.U.G.E.N>/. /sdcard/Android/data/io.github.thalyson42.mugen/files/` e reabrir o app (deve listar `data\mugen.cfg`, `chars` etc. achados). Tocar "Test error dialog" e confirmar o diálogo.
+3. Registrar o número de "Timer_WaitFrame ... cpu %" e o `sleep(2 ms) overshoot` do A065M (calibra `TIMER_SPIN_NS`, hoje 0,5 ms).
+4. P3b (02-fases.md).
+Problemas conhecidos / armadilhas:
+- `mugen_p3a` e `mugen_p3a_support.c` definem globais que também estão em `globals.c`: **não ligar junto com `mugen_core`**.
+- Auto-teste grava `mugen.log` na pasta de dados (sobrescreve um existente).
+- `remove`/`rename`/`freopen` ainda sem resolução de caixa (P3b). Letras não-ASCII não são igualadas (D-014).
+- Se o `getExternalFilesDir` não for navegável no gerenciador de arquivos do aparelho, usar adb (D-005).
+- O fix `fitsSystemWindows` para "Copy report" é palpite: confirmar no aparelho.
+- O código baixado do `sdl12-compat` (spike) ficou fora do repo; nada dele foi copiado.
+Como validar:
+- Host: `cmake -S tests/platform -B build/platform-tests -G Ninja && cmake --build build/platform-tests && ctest --test-dir build/platform-tests --output-on-failure` (esperado: `73 checks, 0 failed`).
+- Android: `cd android && ./gradlew assembleDebug`; `adb install -r app/build/outputs/apk/debug/app-debug.apk`; abrir "MUGEN (diag)"; `adb logcat -s mugen mugen-diag`. Esperado no relatório: `RESULT: N checks, 0 failed` e `char is signed ... [OK]`.
+- Windows: `tools\msvc_env.bat cmake --preset x86-release` e `cmake --build --preset x86-release`.
+Arquivos alterados: src/platform/{platform_path.c,platform_app.c,platform_posix.h,platform_win32.h}, src/{timer,log,error,font,select,stream,luaapi}.c, cmake/MugenAndroid.cmake, android/app/src/main/{cpp/mugen_android_stub.c,cpp/mugen_selftest.c,cpp/mugen_p3a_support.c,java/.../Native.kt,java/.../MainActivity.kt,AndroidManifest.xml}, tests/platform/**, .github/workflows/android.yml, docs/android-port/{README,01,02,03,LOG}.md
+Arquivos que a PRÓXIMA conversa (P3b) precisa receber: README.md, 03-decisoes.md (D-002, D-003, D-013, D-014), esta entrada, o log do CI Android, o relatório do auto-teste do aparelho, e os de "Levar" da P3b em 02-fases.md.
+
 ### 2026-11-25 · P2 — Portabilidade do código · conversa 1
 Estado da fase: CONCLUÍDA (fechamento: run #9 do `android.yml` verde com o passo que exige >= 82 objetos de `mugen_core`; `Build` Windows verde no lote 2, 81 objetos, sem avisos). O Windows só foi verificado por compilação.
 Branch/commit: android/p2-portabilidade. Entregue em dois lotes (patch aplicado pelo dono com `git am`, a conversa não tinha credencial de push): lote 1 = camada de plataforma + código; lote 2 = avisos de 64 bits, alvo CMake e docs.
