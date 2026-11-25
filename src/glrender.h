@@ -1,6 +1,8 @@
 #ifndef MUGEN_GLRENDER_H
 #define MUGEN_GLRENDER_H
 
+
+#include "platform/platform.h"
 /*
  * Types of the OpenGL renderer (glrender.c): GLSL programs and the GLEW
  * function pointers it uses from mugen.exe's own GLEW 1.5.4 copy (filled by
@@ -30,30 +32,31 @@ MUGEN_ASSERT_SIZE(GlProgram, 0x30);
  */
 #define GL_PROGRAM_COUNT 9
 
-/* GLEW function pointer types (__stdcall, as the GL entry points). */
-typedef void (__stdcall *GlEnumFn)(unsigned int e);                   /* glActiveTexture, glBlendEquation... */
-typedef void (__stdcall *GlUintFn)(unsigned int id);                  /* glUseProgram, glCompileShader... */
-typedef void (__stdcall *GlMultiTexCoord2fFn)(unsigned int target, float s, float t);
-typedef void (__stdcall *GlMultiTexCoord4fFn)(unsigned int target, float s, float t, float r, float q);
-typedef void (__stdcall *GlBlendColorFn)(float r, float g, float b, float a);
-typedef void (__stdcall *GlAttachShaderFn)(unsigned int program, unsigned int shader);
-typedef unsigned int (__stdcall *GlCreateProgramFn)(void);
-typedef unsigned int (__stdcall *GlCreateShaderFn)(unsigned int type);
-typedef void (__stdcall *GlGetInfoLogFn)(unsigned int obj, int size, int *length, char *log);
-typedef void (__stdcall *GlGetObjectivFn)(unsigned int obj, unsigned int pname, int *params);
-typedef int (__stdcall *GlGetUniformLocationFn)(unsigned int program, const char *name);
-typedef unsigned char (__stdcall *GlIsShaderFn)(unsigned int shader);
-typedef void (__stdcall *GlShaderSourceFn)(unsigned int shader, int count, const char **string, const int *length);
-typedef void (__stdcall *GlUniform1fFn)(int location, float v0);
-typedef void (__stdcall *GlUniform1iFn)(int location, int v0);
-typedef void (__stdcall *GlUniform2fFn)(int location, float v0, float v1);
-typedef void (__stdcall *GlUniform3fFn)(int location, float v0, float v1, float v2);
-typedef void (__stdcall *GlGenDeleteFn)(int n, unsigned int *ids);    /* glGen/DeleteFramebuffers/RenderbuffersEXT */
-typedef unsigned int (__stdcall *GlCheckFramebufferStatusFn)(unsigned int target);
-typedef void (__stdcall *GlFramebufferRenderbufferFn)(unsigned int target, unsigned int attachment,
+/* GLEW function pointer types (MUGEN_STDCALL, as the GL entry points). */
+typedef void (MUGEN_STDCALL *GlEnumFn)(unsigned int e);                   /* glActiveTexture, glBlendEquation... */
+typedef void (MUGEN_STDCALL *GlUintFn)(unsigned int id);                  /* glUseProgram, glCompileShader... */
+typedef void (MUGEN_STDCALL *GlMultiTexCoord2fFn)(unsigned int target, float s, float t);
+typedef void (MUGEN_STDCALL *GlMultiTexCoord4fFn)(unsigned int target, float s, float t, float r, float q);
+typedef void (MUGEN_STDCALL *GlBlendColorFn)(float r, float g, float b, float a);
+typedef void (MUGEN_STDCALL *GlAttachShaderFn)(unsigned int program, unsigned int shader);
+typedef unsigned int (MUGEN_STDCALL *GlCreateProgramFn)(void);
+typedef unsigned int (MUGEN_STDCALL *GlCreateShaderFn)(unsigned int type);
+typedef void (MUGEN_STDCALL *GlGetInfoLogFn)(unsigned int obj, int size, int *length, char *log);
+typedef void (MUGEN_STDCALL *GlGetObjectivFn)(unsigned int obj, unsigned int pname, int *params);
+typedef int (MUGEN_STDCALL *GlGetUniformLocationFn)(unsigned int program, const char *name);
+typedef unsigned char (MUGEN_STDCALL *GlIsShaderFn)(unsigned int shader);
+typedef void (MUGEN_STDCALL *GlShaderSourceFn)(unsigned int shader, int count, const char **string, const int *length);
+typedef void (MUGEN_STDCALL *GlUniform1fFn)(int location, float v0);
+typedef void (MUGEN_STDCALL *GlUniform1iFn)(int location, int v0);
+typedef void (MUGEN_STDCALL *GlUniform2fFn)(int location, float v0, float v1);
+typedef void (MUGEN_STDCALL *GlUniform3fFn)(int location, float v0, float v1, float v2);
+typedef void (MUGEN_STDCALL *GlGenDeleteFn)(int n, unsigned int *ids);    /* glGen/DeleteFramebuffers/RenderbuffersEXT */
+typedef void (MUGEN_STDCALL *GlDeleteIdsFn)(int n, const unsigned int *ids); /* glDeleteRenderbuffersEXT, const as GLEW declares it */
+typedef unsigned int (MUGEN_STDCALL *GlCheckFramebufferStatusFn)(unsigned int target);
+typedef void (MUGEN_STDCALL *GlFramebufferRenderbufferFn)(unsigned int target, unsigned int attachment,
                                                        unsigned int renderbuffer_target, unsigned int renderbuffer);
-typedef void (__stdcall *GlFramebufferTexture2DFn)(unsigned int target, unsigned int attachment,
+typedef void (MUGEN_STDCALL *GlFramebufferTexture2DFn)(unsigned int target, unsigned int attachment,
                                                     unsigned int texture_target, unsigned int texture, int level);
-typedef void (__stdcall *GlRenderbufferStorageFn)(unsigned int target, unsigned int internal_format, int w, int h);
+typedef void (MUGEN_STDCALL *GlRenderbufferStorageFn)(unsigned int target, unsigned int internal_format, int w, int h);
 
 #endif /* MUGEN_GLRENDER_H */

@@ -6,6 +6,7 @@
  * decompiled), the key bindings that run commands, drawing and the key
  * handler.
  */
+#include "platform/platform.h"
 #include <SDL_ttf.h>
 
 #include "mugen.h"

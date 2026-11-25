@@ -14,6 +14,5 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <direct.h>
 
 #endif /* MUGEN_CRT_H */

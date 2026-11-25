@@ -1,16 +1,18 @@
 #ifndef MUGEN_HASHTABLE_H
 #define MUGEN_HASHTABLE_H
 
+
+#include "platform/platform.h"
 /*
  * Hash tables with callbacks and the command tables of the debug console
  * (hashtable.c).
  */
 
 /* Callbacks; ud1 / ud2 are the user data pointers of the keys or values (always NULL here). */
-typedef unsigned int (__cdecl *HashFn)(const void *key, void *ud1, void *ud2);
-typedef int (__cdecl *HashCompareFn)(const void *a, const void *b, void *ud1, void *ud2);   /* 0 = equal */
-typedef void *(__cdecl *HashCopyFn)(const void *p, void *ud1, void *ud2);
-typedef void (__cdecl *HashFreeFn)(void *p, void *ud1, void *ud2);
+typedef unsigned int (MUGEN_CDECL *HashFn)(const void *key, void *ud1, void *ud2);
+typedef int (MUGEN_CDECL *HashCompareFn)(const void *a, const void *b, void *ud1, void *ud2);   /* 0 = equal */
+typedef void *(MUGEN_CDECL *HashCopyFn)(const void *p, void *ud1, void *ud2);
+typedef void (MUGEN_CDECL *HashFreeFn)(void *p, void *ud1, void *ud2);
 
 typedef struct HashEntry {
     void *key;                  /* 0x00 */
@@ -72,7 +74,7 @@ typedef struct CountedStr {
 struct CmdTable;
 
 /* A command handler: the table, the command word and the rest of the line (NULL if none); returns 0 or a negative error, which CmdTable_Exec ignores. */
-typedef int (__cdecl *CmdHandlerFn)(struct CmdTable *t, char *word, char *rest);
+typedef int (MUGEN_CDECL *CmdHandlerFn)(struct CmdTable *t, char *word, char *rest);
 
 /* A command of a command table (the values of its hash table). */
 typedef struct CmdTableEntry {

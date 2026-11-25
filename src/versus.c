@@ -10,6 +10,7 @@
  * characters on the stage in state 180 under the motif's wintext.
  */
 #define HAVE_STRUCT_TIMESPEC 1      /* the CRT's time.h already has it */
+#include "platform/platform.h"
 #include <pthread.h>
 
 #include "mugen.h"

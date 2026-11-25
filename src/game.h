@@ -1,6 +1,8 @@
 #ifndef MUGEN_GAME_H
 #define MUGEN_GAME_H
 
+
+#include "platform/platform.h"
 /*
  * The "game variables" block, allocated once by System_Init (calloc 0x13108).
  * Only the fields understood so far are named; the rest is padding named after
@@ -730,10 +732,10 @@ enum {
 };
 
 /* Called with 1/0 when the game window gains/loses focus (see g_onActivate). */
-typedef void (__cdecl *ActivateFn)(int gained);
+typedef void (MUGEN_CDECL *ActivateFn)(int gained);
 
 /* Translates a configured key or joystick button to an input code (Input_Remap). */
-typedef int (__cdecl *InputTranslateFn)(int key);
+typedef int (MUGEN_CDECL *InputTranslateFn)(int key);
 
 /* Value of the CmdLineArgs per-player overrides when not given. */
 #define CMDLINE_UNSET (-1)

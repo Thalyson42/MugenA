@@ -1,6 +1,8 @@
 #ifndef MUGEN_SELECT_H
 #define MUGEN_SELECT_H
 
+
+#include "platform/platform.h"
 /*
  * Character select screen: select.def (characters, stages, arcade order),
  * the [Select Info] layout of the motif, the select screen state machine and
@@ -497,7 +499,7 @@ MUGEN_ASSERT_SIZE(CharselState, 0x3D14);
 /* ---- generic screen loop (run by Screen_Run at 0x40E7C0) ---- */
 
 struct ScreenLoop;
-typedef int (__cdecl *ScreenFn)(struct ScreenLoop *screen, void *state);
+typedef int (MUGEN_CDECL *ScreenFn)(struct ScreenLoop *screen, void *state);
 
 /* Input bits of ScreenLoop.input (menu directions and buttons). */
 #define SCREEN_IN_UP        0x001
@@ -555,6 +557,6 @@ MUGEN_ASSERT_OFFSET(ScreenLoop, init, 0x90);
 MUGEN_ASSERT_SIZE(ScreenLoop, 0xA8);
 
 /* Value of g_gfxFillRectColor (renderer dependent). */
-typedef void (__cdecl *GfxFillRectFn)(int x1, int y1, int x2, int y2, unsigned int color);
+typedef void (MUGEN_CDECL *GfxFillRectFn)(int x1, int y1, int x2, int y2, unsigned int color);
 
 #endif /* MUGEN_SELECT_H */

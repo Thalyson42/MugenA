@@ -1,6 +1,8 @@
 #ifndef MUGEN_SPRITECODEC_H
 #define MUGEN_SPRITECODEC_H
 
+
+#include "platform/platform.h"
 /*
  * SFF v2 sprite codecs (spritecodec.c): RLE8 (format 2), RLE5 (format 3)
  * and LZ5 (format 4), their encoders, the growable output buffer they write
@@ -13,7 +15,7 @@
  */
 
 /* Encoder of a compressed sprite format (g_spriteEncoders[format]): malloc'ed data, or NULL. */
-typedef unsigned char *(__cdecl *SpriteEncodeFn)(const void *pixels, int w, int h, int *size_out);
+typedef unsigned char *(MUGEN_CDECL *SpriteEncodeFn)(const void *pixels, int w, int h, int *size_out);
 
 /* Size prefix of compressed sprite data (the decoded size). */
 #define SPRITE_CODEC_PREFIX 4

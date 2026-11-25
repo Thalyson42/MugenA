@@ -14,6 +14,7 @@
  * Plugin settings are read with BgmSettings_Get directly (not through the
  * accessor given to init).
  */
+#include "platform/platform.h"
 #include <SDL.h>
 #include <SDL_mixer.h>
 

@@ -1,6 +1,8 @@
 #ifndef MUGEN_EVENTS_H
 #define MUGEN_EVENTS_H
 
+
+#include "platform/platform.h"
 /*
  * SDL event pump and the input state/queue it feeds (events.c).
  *
@@ -24,10 +26,10 @@
 #define INPUT_QUEUE_SIZE    0x100
 
 /* Receives key (code, pressed) and joystick button (button, pressed) changes (g_keyHandler, g_padHandler). */
-typedef void (__cdecl *InputHandlerFn)(int code, int pressed);
+typedef void (MUGEN_CDECL *InputHandlerFn)(int code, int pressed);
 
 /* Receives every SDL key event (g_keyEventHandler): unicode (low 16 bits), key symbol, pressed. */
-typedef void (__cdecl *KeyEventFn)(unsigned int unicode, int sym, int pressed);
+typedef void (MUGEN_CDECL *KeyEventFn)(unsigned int unicode, int sym, int pressed);
 
 /*
  * Keyboard and joystick code queues (g_keyboardQueue, g_padQueue): ring

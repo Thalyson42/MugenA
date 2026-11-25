@@ -24,7 +24,7 @@
  *   negative.
  */
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#include "platform/platform.h"
 #include <GL/gl.h>
 
 #include "mugen.h"

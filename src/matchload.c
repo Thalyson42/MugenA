@@ -10,8 +10,7 @@
  * stay in double and are rounded to float where the original stores a float.
  */
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <mmsystem.h>
+#include "platform/platform.h"
 #include <SDL_mixer.h>
 #define HAVE_STRUCT_TIMESPEC 1      /* the CRT's time.h already has it */
 #include <pthread.h>
@@ -21,16 +20,16 @@
 /* Timer_GetTicks as the original inlines it (Timer_Count included). */
 static int Ml_TimerTicks(void)
 {
-    __int64 now;
+    MUGEN_INT64 now;
 
     if (g_timerPerformance) {
         LARGE_INTEGER c;
         QueryPerformanceCounter(&c);
         now = c.QuadPart - g_timerStart;
     } else {
-        now = (__int64)timeGetTime() - g_timerStart;
+        now = (MUGEN_INT64)timeGetTime() - g_timerStart;
     }
-    return (int)((__int64)g_timerTicksPerSecond * now / g_timerFrequency);
+    return (int)((MUGEN_INT64)g_timerTicksPerSecond * now / g_timerFrequency);
 }
 
 /* The session RNG (Random_Next) as the original inlines it. */
@@ -1186,13 +1185,13 @@ void Match_NextRound(void)
     g->frame_skip_count = 0;
     g->skip_draw = 0;
     {
-        __int64 now;
+        MUGEN_INT64 now;
         if (g_timerPerformance) {
             LARGE_INTEGER c;
             QueryPerformanceCounter(&c);
             now = c.QuadPart - g_timerStart;
         } else {
-            now = (__int64)timeGetTime() - g_timerStart;
+            now = (MUGEN_INT64)timeGetTime() - g_timerStart;
         }
         g_timerResyncs++;
         g_timerFrame = 0;

@@ -42,7 +42,7 @@ void SpriteCache_Remove(void *data)
 int SpriteCache_Get(void *data, int format, int size, void **out)
 {
     DecompRequest key;
-    unsigned __int64 r;
+    unsigned MUGEN_INT64 r;
     void *pixels;
 
     if (g_spriteDecompBuffer == NULL) {

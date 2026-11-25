@@ -8,6 +8,7 @@
  * BGM. A ScreenLoop that is not inner is the fight: the game loop functions
  * (Game_*) run around the callbacks.
  */
+#include "platform/platform.h"
 #include <SDL.h>
 #include <SDL_mixer.h>
 #define HAVE_STRUCT_TIMESPEC 1      /* the CRT's time.h already has it */

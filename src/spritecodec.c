@@ -1119,7 +1119,7 @@ void *DecompBuffer_Alloc(const DecompRequest *req)
  * block was allocated (a block too small for req is freed first; payload
  * NULL when nothing fits).
  */
-unsigned __int64 DecompBuffer_Get(const DecompRequest *req)
+unsigned MUGEN_INT64 DecompBuffer_Get(const DecompRequest *req)
 {
     DecompBuffer *buf = req->pool;
     unsigned int need = DecompBlock_Need(req->size);
@@ -1143,7 +1143,7 @@ unsigned __int64 DecompBuffer_Get(const DecompRequest *req)
             blk->cost = req->cost;
             blk->expire = buf->clock + req->cost;
             buf->hits++;
-            return (unsigned int)(blk + 1) | (unsigned __int64)1 << 32;
+            return (unsigned int)(blk + 1) | (unsigned MUGEN_INT64)1 << 32;
         }
         DecompBuffer_FreeBlock(blk, buf, prev);
     }

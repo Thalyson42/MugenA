@@ -12,6 +12,7 @@
  * training menu are drawn with the built-in fonts and plain rectangles; the
  * key configuration runs its own frame loop.
  */
+#include "platform/platform.h"
 #include <SDL.h>
 
 #include "mugen.h"

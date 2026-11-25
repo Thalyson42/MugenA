@@ -9,6 +9,7 @@
  * settings and a few engine callbacks; a BGM file is played by the first
  * registered plugin whose extension list has the file's extension.
  */
+#include "platform/platform.h"
 #include <SDL.h>
 #define HAVE_STRUCT_TIMESPEC 1      /* the CRT's time.h already has it */
 #include <pthread.h>
@@ -19,7 +20,7 @@
 #define BGM_LOCK()   pthread_mutex_lock((pthread_mutex_t *)&g_bgmMutex)
 #define BGM_UNLOCK() pthread_mutex_unlock((pthread_mutex_t *)&g_bgmMutex)
 
-typedef const BgmSubsystem *(__cdecl *BgmGetSubsystemFn)(void);
+typedef const BgmSubsystem *(MUGEN_CDECL *BgmGetSubsystemFn)(void);
 
 /* An empty array of pointers (inlined by the original). Quirk: when only one allocation fails, the other leaks. */
 static DynArray *dynarray_new(void)

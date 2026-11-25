@@ -20,6 +20,7 @@
  *   argument, kept here; the others use the format value like Wav_FrameSize).
  *   Only the known formats reach them.
  */
+#include "platform/platform.h"
 #include <libresample.h>
 
 #include "mugen.h"

@@ -1,6 +1,8 @@
 #ifndef MUGEN_BGM_H
 #define MUGEN_BGM_H
 
+
+#include "platform/platform.h"
 /*
  * Types of the background music modules: the plugin registry and BGM API
  * (bgm.c), the BGM thread with its command queue and mixer callback
@@ -63,9 +65,9 @@ typedef struct BgmPluginConfig {
 MUGEN_ASSERT_OFFSET(BgmPluginConfig, settings, 0x10);
 MUGEN_ASSERT_SIZE(BgmPluginConfig, 0x18);
 
-typedef const char *(__cdecl *BgmGetExtensionFn)(const char *path);
-typedef void (__cdecl *BgmGetLoopFn)(const BgmInfo *info, int *loop);
-typedef const char *(__cdecl *BgmSettingFn)(const BgmSettings *settings, const char *key);
+typedef const char *(MUGEN_CDECL *BgmGetExtensionFn)(const char *path);
+typedef void (MUGEN_CDECL *BgmGetLoopFn)(const BgmInfo *info, int *loop);
+typedef const char *(MUGEN_CDECL *BgmSettingFn)(const BgmSettings *settings, const char *key);
 
 /* Engine services given to a plugin's init. */
 typedef struct BgmHostCallbacks {
@@ -75,19 +77,19 @@ typedef struct BgmHostCallbacks {
 } BgmHostCallbacks;
 MUGEN_ASSERT_SIZE(BgmHostCallbacks, 0x0C);
 
-typedef unsigned int (__cdecl *BgmVersionFn)(void);
-typedef const char *(__cdecl *BgmExtensionsFn)(void);
-typedef int (__cdecl *BgmPluginInitFn)(const BgmPluginConfig *config, const BgmHostCallbacks *host,
+typedef unsigned int (MUGEN_CDECL *BgmVersionFn)(void);
+typedef const char *(MUGEN_CDECL *BgmExtensionsFn)(void);
+typedef int (MUGEN_CDECL *BgmPluginInitFn)(const BgmPluginConfig *config, const BgmHostCallbacks *host,
                                        BgmSettingFn get_setting);
-typedef void (__cdecl *BgmPluginDeinitFn)(void);
-typedef int (__cdecl *BgmInstanceFn)(void *instance);
-typedef int (__cdecl *BgmInstanceMuteFn)(void *instance, int muted);
+typedef void (MUGEN_CDECL *BgmPluginDeinitFn)(void);
+typedef int (MUGEN_CDECL *BgmInstanceFn)(void *instance);
+typedef int (MUGEN_CDECL *BgmInstanceMuteFn)(void *instance, int muted);
 
 /* File access the stream loader gives a plugin's open (Stream functions). */
-typedef size_t (__cdecl *BgmIoReadFn)(void *buf, size_t size, size_t count, void *handle);
-typedef int (__cdecl *BgmIoSeekFn)(void *handle, long offset, int origin);
-typedef long (__cdecl *BgmIoTellFn)(void *handle);
-typedef int (__cdecl *BgmIoEofFn)(void *handle);
+typedef size_t (MUGEN_CDECL *BgmIoReadFn)(void *buf, size_t size, size_t count, void *handle);
+typedef int (MUGEN_CDECL *BgmIoSeekFn)(void *handle, long offset, int origin);
+typedef long (MUGEN_CDECL *BgmIoTellFn)(void *handle);
+typedef int (MUGEN_CDECL *BgmIoEofFn)(void *handle);
 
 typedef struct BgmPluginIo {
     void *handle;                       /* 0x00 Stream * */
@@ -114,13 +116,13 @@ enum {
     BGM_READ_EVENT_FORMAT = 3           /* the output format changes after this data */
 };
 
-typedef void *(__cdecl *BgmCreateFn)(void);
-typedef void (__cdecl *BgmDestroyFn)(void *instance);
-typedef int (__cdecl *BgmOpenFn)(void *instance, const BgmPluginIo *io, BgmInfo *info, BgmOpenResult *out);
-typedef int (__cdecl *BgmSetVolumeFn)(void *instance, double volume);
-typedef const char *(__cdecl *BgmStrErrorFn)(void *instance, int err);
-typedef int (__cdecl *BgmReadFn)(void *instance, void *buf, unsigned int size, unsigned int *got, int *event);
-typedef int (__cdecl *BgmGetFormatFn)(void *instance, AudioFormat *format);
+typedef void *(MUGEN_CDECL *BgmCreateFn)(void);
+typedef void (MUGEN_CDECL *BgmDestroyFn)(void *instance);
+typedef int (MUGEN_CDECL *BgmOpenFn)(void *instance, const BgmPluginIo *io, BgmInfo *info, BgmOpenResult *out);
+typedef int (MUGEN_CDECL *BgmSetVolumeFn)(void *instance, double volume);
+typedef const char *(MUGEN_CDECL *BgmStrErrorFn)(void *instance, int err);
+typedef int (MUGEN_CDECL *BgmReadFn)(void *instance, void *buf, unsigned int size, unsigned int *got, int *event);
+typedef int (MUGEN_CDECL *BgmGetFormatFn)(void *instance, AudioFormat *format);
 
 /*
  * Function table of a BGM plugin ("subsystem"): getBGMSubsystem() of a
@@ -233,7 +235,7 @@ MUGEN_ASSERT_SIZE(BgmRing, 0x28);
 /* ------------------------------------------------------------------ thread */
 
 /* Returns the time stamp of queued BGM commands: the game frame (g_bgmGetHandle). */
-typedef int (__cdecl *BgmHandleFn)(void);
+typedef int (MUGEN_CDECL *BgmHandleFn)(void);
 
 /* BgmCommand.cmd */
 enum {
@@ -296,7 +298,7 @@ MUGEN_ASSERT_SIZE(BgmThreadStart, 0x08);
 /* ------------------------------------------------------------------ built-in plugins */
 
 /* Called by a plugin when its stream ends by itself (plugins' set end callback). */
-typedef void (__cdecl *BgmEndFn)(void *arg);
+typedef void (MUGEN_CDECL *BgmEndFn)(void *arg);
 
 /* libmpg123 entry points (resolved by Mpg123_LoadSymbols); handles are mpg123_handle *. */
 typedef struct Mpg123FrameInfo {
@@ -314,21 +316,21 @@ typedef struct Mpg123FrameInfo {
 } Mpg123FrameInfo;
 MUGEN_ASSERT_SIZE(Mpg123FrameInfo, 0x2C);
 
-typedef int (__cdecl *Mpg123InitFn)(void);
-typedef void (__cdecl *Mpg123ExitFn)(void);
-typedef void *(__cdecl *Mpg123NewFn)(const char *decoder, int *error);
-typedef void (__cdecl *Mpg123HandleFn)(void *mh);
-typedef int (__cdecl *Mpg123HandleIntFn)(void *mh);
-typedef int (__cdecl *Mpg123FormatFn)(void *mh, long rate, int channels, int encodings);
-typedef int (__cdecl *Mpg123ParamFn)(void *mh, int type, long value, double fvalue);
-typedef int (__cdecl *Mpg123GetFormatFn)(void *mh, long *rate, int *channels, int *encoding);
-typedef int (__cdecl *Mpg123ReadFn)(void *mh, void *out, size_t size, size_t *done);
-typedef int (__cdecl *Mpg123FeedFn)(void *mh, const void *in, size_t size);
-typedef long (__cdecl *Mpg123FeedSeekFn)(void *mh, long sample, int whence, long *input_offset);
-typedef const char *(__cdecl *Mpg123PlainStrErrorFn)(int error);
-typedef const char *(__cdecl *Mpg123StrErrorFn)(void *mh);
-typedef int (__cdecl *Mpg123VolumeFn)(void *mh, double volume);
-typedef int (__cdecl *Mpg123InfoFn)(void *mh, Mpg123FrameInfo *info);
+typedef int (MUGEN_CDECL *Mpg123InitFn)(void);
+typedef void (MUGEN_CDECL *Mpg123ExitFn)(void);
+typedef void *(MUGEN_CDECL *Mpg123NewFn)(const char *decoder, int *error);
+typedef void (MUGEN_CDECL *Mpg123HandleFn)(void *mh);
+typedef int (MUGEN_CDECL *Mpg123HandleIntFn)(void *mh);
+typedef int (MUGEN_CDECL *Mpg123FormatFn)(void *mh, long rate, int channels, int encodings);
+typedef int (MUGEN_CDECL *Mpg123ParamFn)(void *mh, int type, long value, double fvalue);
+typedef int (MUGEN_CDECL *Mpg123GetFormatFn)(void *mh, long *rate, int *channels, int *encoding);
+typedef int (MUGEN_CDECL *Mpg123ReadFn)(void *mh, void *out, size_t size, size_t *done);
+typedef int (MUGEN_CDECL *Mpg123FeedFn)(void *mh, const void *in, size_t size);
+typedef long (MUGEN_CDECL *Mpg123FeedSeekFn)(void *mh, long sample, int whence, long *input_offset);
+typedef const char *(MUGEN_CDECL *Mpg123PlainStrErrorFn)(int error);
+typedef const char *(MUGEN_CDECL *Mpg123StrErrorFn)(void *mh);
+typedef int (MUGEN_CDECL *Mpg123VolumeFn)(void *mh, double volume);
+typedef int (MUGEN_CDECL *Mpg123InfoFn)(void *mh, Mpg123FrameInfo *info);
 
 /* Instance of the mpg123 plugin (Mpg123_Create: 0x68 bytes plus the read buffer). */
 typedef struct Mpg123Instance {

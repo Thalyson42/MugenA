@@ -17,6 +17,7 @@
  *   clearing their pointers; System_ReloadMotif does not check VictoryBG to
  *   decide whether the backgrounds need reloading.
  */
+#include "platform/platform.h"
 #include <SDL_ttf.h>
 #include "mugen.h"
 

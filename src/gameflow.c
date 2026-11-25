@@ -8,6 +8,7 @@
  * float to int conversions truncate like __ftol2.
  */
 #define HAVE_STRUCT_TIMESPEC 1      /* the CRT's time.h already has it */
+#include "platform/platform.h"
 #include <pthread.h>
 
 #include "mugen.h"

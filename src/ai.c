@@ -32,9 +32,9 @@ static int AiAbs(int v)
 static int AiRand(void)
 {
     GameVars *g = g_game;
-    unsigned __int64 s = g->match_rng * (unsigned __int64)g->match_rng_mul;
+    unsigned MUGEN_INT64 s = g->match_rng * (unsigned MUGEN_INT64)g->match_rng_mul;
 
-    s %= (unsigned __int64)g->match_rng_mod;
+    s %= (unsigned MUGEN_INT64)g->match_rng_mod;
     g->match_rng = s;
     return (int)(unsigned int)s;
 }

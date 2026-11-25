@@ -11,9 +11,11 @@
  * renderer, where the game is scaled to the window.
  */
 #define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#include "platform/platform.h"
 #include <SDL.h>
+#if defined(MUGEN_PLATFORM_WIN32)
 #include <SDL_syswm.h>
+#endif
 #include <GL/gl.h>
 #include <GL/glu.h>
 
@@ -311,6 +313,8 @@ void Video_HandleFullscreenKey(int *key)
  * 0x00462D80: switches the window between borderless full screen on its
  * monitor and the saved window placement. Returns 0 when SDL has no window.
  */
+#if defined(MUGEN_PLATFORM_WIN32)
+
 int Video_SetFullscreen(int fullscreen)
 {
     SDL_SysWMinfo info;
@@ -363,6 +367,20 @@ int Video_SetFullscreen(int fullscreen)
     g_videoFullscreen = fullscreen;
     return 1;
 }
+
+#else /* !MUGEN_PLATFORM_WIN32 */
+
+/*
+ * Android: the app window is always the full screen, so there is nothing to switch; only the state flag follows.
+ * TODO(P3/P11): immersive mode and the notch, driven from the activity.
+ */
+int Video_SetFullscreen(int fullscreen)
+{
+    g_videoFullscreen = fullscreen;
+    return 1;
+}
+
+#endif /* MUGEN_PLATFORM_WIN32 */
 
 /* Sprite slot `index` of a sprite set, as the original computes it (no bounds check). */
 static Sprite *Video_SpriteAt(const SpriteSet *set, int index)
