@@ -8,7 +8,7 @@ hoje só Win32 x86/MSVC) para **Android**, com renderers **Vulkan** e **OpenGL E
 Depois do port, haverá uma segunda etapa de **alterações/novos recursos** (fase reservada, ver `02-fases.md`).
 
 ## Decisões fixas
-- **ABI:** `arm64-v8a` nativo, sem emulação (D-001). **Dispositivo de referência:** Samsung Galaxy A06 5G (D-010).
+- **ABI:** `arm64-v8a` nativo, sem emulação (D-001). **Dispositivo de referência:** Samsung **SM-A065M** (relatório em D-010).
 - **Renderers:** software (primeiro) → GLES → Vulkan; os três ficam no projeto (D-010).
 
 ## Princípios (valem para todas as conversas)
@@ -23,9 +23,9 @@ Depois do port, haverá uma segunda etapa de **alterações/novos recursos** (fa
 ## Quadro de status  (atualizar ao fim de TODA conversa)
 | Fase | Nome | Estado | Branch / commit | Última conta/conversa | Observações |
 |---|---|---|---|---|---|
-| P0 | Fundação e decisões | EM ANDAMENTO | — | — | docs criados; D-001 e D-010 decididas (arm64 nativo; A06 5G; software→GLES→Vulkan); D-002..D-006 pendentes |
+| P0 | Fundação e decisões | EM ANDAMENTO | — | — | docs criados; D-001 e D-010 decididas (arm64 nativo; SM-A065M; software→GLES→Vulkan); D-002..D-006 pendentes |
 | P1 | Build Android (NDK/CMake/Gradle/CI) | CONCLUÍDA | `android/p1-build` @ 6b561ce (PR → `android/main`) | conversa P1 #1 + coordenadora | CI Android e Build Windows verdes no PR; APK rodou no aparelho (relatório em D-010). Pendente menor: o botão "Copy report" não aparece no app (ver LOG) |
-| P2 | Portabilidade do código (64 bits, Win32, `__stdcall`) | PRÓXIMA | — | — | |
+| P2 | Portabilidade do código (64 bits, Win32, `__stdcall`) | EM ANDAMENTO | `android/p2-portabilidade` | conversa P2 #1 | código pronto; `Build` Windows verde no lote 1; falta o CI Android compilar `mugen_core` com o NDK (lote 2). D-012 e D-013 |
 | P3 | Camada de plataforma (janela, eventos, tempo, arquivos) | não iniciada | — | — | |
 | P4 | Áudio e BGM | não iniciada | — | — | |
 | P5 | Primeiro boot (renderer software → tela de título) | não iniciada | — | — | **Marco M1** |
