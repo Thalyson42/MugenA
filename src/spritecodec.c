@@ -1114,20 +1114,23 @@ void *DecompBuffer_Alloc(const DecompRequest *req)
 }
 
 /*
- * 0x0048C890: the block of req->key in its buffer: the payload, high dword
- * 1 when the block was there (its expire value is renewed), 0 when a new
- * block was allocated (a block too small for req is freed first; payload
- * NULL when nothing fits).
+ * 0x0048C890: the block of req->key in its buffer: the payload, with *hit
+ * set to 1 when the block was there (its expire value is renewed) and to 0
+ * when a new block was allocated (a block too small for req is freed first;
+ * payload NULL when nothing fits). The original returns both in one 64-bit
+ * value (payload in the low dword, hit in the high one), which a 64-bit
+ * pointer does not fit.
  */
-unsigned MUGEN_INT64 DecompBuffer_Get(const DecompRequest *req)
+void *DecompBuffer_Get(const DecompRequest *req, int *hit)
 {
     DecompBuffer *buf = req->pool;
     unsigned int need = DecompBlock_Need(req->size);
     DecompBlock *prev = NULL;
     DecompBlock *blk;
 
+    *hit = 0;
     if (need > buf->size) {
-        return 0;
+        return NULL;
     }
     blk = buf->data;
     if (blk->size != 0) {
@@ -1136,17 +1139,18 @@ unsigned MUGEN_INT64 DecompBuffer_Get(const DecompRequest *req)
             blk = DecompBlock_Next(blk);
             if (blk->size == 0) {
                 buf->misses++;
-                return (unsigned int)DecompBuffer_Alloc(req);
+                return DecompBuffer_Alloc(req);
             }
         }
         if (blk->size >= need) {
             blk->cost = req->cost;
             blk->expire = buf->clock + req->cost;
             buf->hits++;
-            return (unsigned int)(blk + 1) | (unsigned MUGEN_INT64)1 << 32;
+            *hit = 1;
+            return blk + 1;
         }
         DecompBuffer_FreeBlock(blk, buf, prev);
     }
     buf->misses++;
-    return (unsigned int)DecompBuffer_Alloc(req);
+    return DecompBuffer_Alloc(req);
 }

@@ -1385,20 +1385,20 @@ void Match_Unload(void)
             CharData *c;
 
             if (ci != -1 && (c = CharCache_Get(ci)) != NULL && c->quote_count > 0) {
-                const int *quotes = (const int *)c->quotes;
+                char *const *quotes = c->quotes;
                 int q = ts->member_data[m][0].victory_quote;
-                if ((unsigned int)q > 99 || quotes[q] == 0 || q == -1) {
+                if ((unsigned int)q > 99 || quotes[q] == NULL || q == -1) {
                     int n = Match_Random() % c->quote_count + 1;
                     q = 0;
                     do {
                         q++;
-                        while (quotes[q] == 0) {
+                        while (quotes[q] == NULL) {
                             q = (q + 1) % 100;
                         }
                         n--;
                     } while (n > 0);
                 }
-                strncpy(g->victory_quote, (const char *)quotes[q], 0x3FF);
+                strncpy(g->victory_quote, quotes[q], 0x3FF);
             }
         }
     }

@@ -82,12 +82,18 @@ int  Mugen_GetLocaleInfoA(DWORD locale, DWORD type, char *buf, int size);
 #define SHGetFolderPathA(hwnd, csidl, token, flags, path) Mugen_SHGetFolderPathA(hwnd, csidl, token, flags, path)
 #define GetLocaleInfoA(locale, type, buf, size)           Mugen_GetLocaleInfoA(locale, type, buf, size)
 
+/* ---- atomics ---------------------------------------------------------------------------------------------- */
+/* Returns the value before the addition, with a full barrier, as the Win32 function does. */
+#define InterlockedExchangeAdd(p, v)   __atomic_fetch_add((p), (v), __ATOMIC_SEQ_CST)
+
 /* ---- dynamic libraries ------------------------------------------------------------------------------------ */
 #define LoadLibraryA(name)             dlopen((name), RTLD_NOW)
 #define GetProcAddress(lib, name)      dlsym((lib), (name))
 #define FreeLibrary(lib)               dlclose(lib)
 
 /* ---- MSVC CRT names --------------------------------------------------------------------------------------- */
+int putenv(char *string);   /* POSIX; hidden by strict -std=c11 on some libcs */
+
 #define _stricmp   strcasecmp
 #define _strnicmp  strncasecmp
 #define _isnan     isnan

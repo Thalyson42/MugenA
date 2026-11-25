@@ -585,7 +585,7 @@ int Bgm_StreamOpen(const BgmInfo *info_in)
     if (s->mode == BGM_MODE_PLUGIN) {
         plugin->set_mute(s->instance, s->muted);
     } else {
-        Bgm_StreamSetupResampler(&s->format, s, (int)file);
+        Bgm_StreamSetupResampler(&s->format, s, (int)(intptr_t)file);
     }
     return 1;
 }
@@ -752,7 +752,7 @@ unsigned int Bgm_StreamRead(void *dst, int *status)
             if (s->format_changed == 1) {
                 AudioFormat format;
                 s->plugin->get_format(s->instance, &format);
-                Bgm_StreamSetupResampler(&format, s, (int)&format);
+                Bgm_StreamSetupResampler(&format, s, (int)(intptr_t)&format);
             } else {
                 ended = 1;
             }

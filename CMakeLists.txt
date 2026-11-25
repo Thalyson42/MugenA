@@ -25,14 +25,6 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-if(MUGEN_PLATFORM_ANDROID)
-  include(MugenAndroid)   # third-party libraries + libmugen.so, replaces everything below
-  return()
-endif()
-
-include(MugenSdk)
-include(ThirdParty)
-
 # The engine, one file per module of the original (see docs/ANALYSIS.md).
 set(MUGEN_SOURCES
   src/afterimage.c
@@ -117,6 +109,14 @@ set(MUGEN_SOURCES
   src/video.c
   src/wav.c
 )
+
+if(MUGEN_PLATFORM_ANDROID)
+  include(MugenAndroid)   # third-party libraries, the engine objects + libmugen.so; replaces everything below
+  return()
+endif()
+
+include(MugenSdk)
+include(ThirdParty)
 
 add_executable(mugen WIN32 ${MUGEN_SOURCES} src/mugen.rc src/mugen.manifest)
 target_include_directories(mugen PRIVATE src)

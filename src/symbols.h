@@ -1789,7 +1789,7 @@ extern ExprValue g_exprStackValue[128]; /* 0x00505500 */
 /* 0x0048c730 */ int MUGEN_CDECL Rle8_PutRun(int count, GrowBufWriter *w, int value);
 /* 0x0048c7b0 */ DecompBuffer *MUGEN_CDECL DecompBuffer_Create(unsigned int size);
 /* 0x0048c830 */ int MUGEN_CDECL DecompBuffer_Reset(DecompBuffer *buf);
-/* 0x0048c890 */ unsigned MUGEN_INT64 MUGEN_CDECL DecompBuffer_Get(const DecompRequest *req);
+/* 0x0048c890 */ void *MUGEN_CDECL DecompBuffer_Get(const DecompRequest *req, int *hit);
 /* 0x0048c910 */ void *MUGEN_CDECL DecompBuffer_Alloc(const DecompRequest *req);
 /* 0x0048caa0 */ DecompBlock *MUGEN_CDECL DecompBuffer_FreeBlock(DecompBlock *blk, DecompBuffer *buf, DecompBlock *prev);
 /* 0x0048cb10 */ unsigned char *MUGEN_CDECL Lz5_Encode(const void *pixels, int w, int h, int *size_out);

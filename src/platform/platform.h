@@ -39,6 +39,8 @@
 #  define MUGEN_NORETURN __attribute__((noreturn))
 #endif
 
+#include <stdint.h>   /* intptr_t: a pointer-sized integer (int on the 32-bit build) */
+
 #if defined(MUGEN_PLATFORM_WIN32)
 #  include "platform_win32.h"
 #else
