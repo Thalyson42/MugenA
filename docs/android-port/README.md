@@ -25,8 +25,8 @@ Depois do port, haverá uma segunda etapa de **alterações/novos recursos** (fa
 |---|---|---|---|---|---|
 | P0 | Fundação e decisões | EM ANDAMENTO | — | — | docs criados; D-001 e D-010 decididas (arm64 nativo; SM-A065M; software→GLES→Vulkan); D-002..D-006 pendentes |
 | P1 | Build Android (NDK/CMake/Gradle/CI) | CONCLUÍDA | `android/p1-build` @ 6b561ce (PR → `android/main`) | conversa P1 #1 + coordenadora | CI Android e Build Windows verdes no PR; APK rodou no aparelho (relatório em D-010). Pendente menor: o botão "Copy report" não aparece no app (ver LOG) |
-| P2 | Portabilidade do código (64 bits, Win32, `__stdcall`) | EM ANDAMENTO | `android/p2-portabilidade` | conversa P2 #1 | código pronto; `Build` Windows verde no lote 1; falta o CI Android compilar `mugen_core` com o NDK (lote 2). D-012 e D-013 |
-| P3 | Camada de plataforma (janela, eventos, tempo, arquivos) | não iniciada | — | — | |
+| P2 | Portabilidade do código (64 bits, Win32, `__stdcall`) | CONCLUÍDA | `android/p2-portabilidade` (run #9 do `android.yml` verde; `Build` Windows verde no lote 2) | conversa P2 #1 | `src/*.c` compila para arm64 pelo NDK (`mugen_core`, CI conta os `.o`); D-012 e D-013. Windows só foi verificado por compilação, não por execução |
+| P3 | Camada de plataforma (janela, eventos, tempo, arquivos) | PRÓXIMA | — | — | |
 | P4 | Áudio e BGM | não iniciada | — | — | |
 | P5 | Primeiro boot (renderer software → tela de título) | não iniciada | — | — | **Marco M1** |
 | P6 | Abstração de renderer | não iniciada | — | — | |
