@@ -258,3 +258,9 @@ Pendente: confirmar D-001..D-006; criar branch android/main e commitar estes doc
 
 ### P3b M2 fix 6: soft keyboard popping up
 - Keyboard_SetEventHandler calls SDL_EnableUNICODE(1); sdl12-compat maps it to SDL_StartTextInput, so Android shows the IME at start. Skipped on Android (unicode field stays 0; only the debug console text is affected). Revisit with the touch/gamepad layer (P6).
+
+### P3b M2: menu on device; freeze on touch = lock-order deadlock in sdl12-compat (patched)
+- Device (A065M): with the 16-bit System renderer the title menu and the intro render correctly (screenshot OK). Minor purple specks around menu text, in backgrounds and near sprites in the intro (to investigate: transparency/mask colour or 16-bit blend).
+- Freeze on first touch, from the mugen-wd dump: UI thread in onNativeTouch -> SDL_PushEvent -> compat filter -> SDL_LockMutex; engine thread in compat SDL_PollEvent -> SDL_PumpEvents -> SDL2 SDL_PollEvent -> SDL_PushEvent -> SDL_LockMutex. Opposite lock order (EventQueueMutex vs SDL2 watcher lock). Fix: patch in third_party/sdl12-compat (D-015 item 9, README-mugen.md item 2).
+- BMPs: SDL_SaveBMP never produced files (not needed any more; the screenshot of the owner is enough). Left in; remove in M3.
+- Next: owner retests touch. Then the purple specks, then M3 (lifecycle).

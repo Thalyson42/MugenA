@@ -3149,7 +3149,7 @@ SDL_PollEvent_locked(SDL12_Event *event12)
 {
     EventQueueType *next;
 
-    SDL_PumpEvents();  /* this will run our filter and build our 1.2 queue. */
+    /* MUGEN-UNLEASHED PATCH: SDL_PumpEvents() moved to the callers, before they take EventQueueMutex (see SDL_PumpEvents). */
 
     if (EventQueueHead == NULL) {
         return 0;  /* no events at the moment. */
@@ -3177,6 +3177,8 @@ SDL_PollEvent(SDL12_Event *event12)
     if (!EventQueueMutex) {
         return 0;
     }
+
+    SDL_PumpEvents();  /* this will run our filter and build our 1.2 queue (MUGEN-UNLEASHED PATCH: outside the lock). */
 
     SDL20_LockMutex(EventQueueMutex);
     retval = SDL_PollEvent_locked(event12);
@@ -3236,16 +3238,7 @@ SDL_PeepEvents_locked(SDL12_Event *events12, int numevents, SDL_eventaction acti
 {
     SDL12_Event dummy_event;
 
-    /* We don't actually implement an event thread in sdl12-compat, but some
-     * games will only call SDL_PeepEvents(), which doesn't otherwise pump
-     * events, and get stuck when they've consumed all the events.
-     *
-     * Just pumping the event loop here simulates an event thread well enough
-     * for most things.
-     */
-    if (EventThreadEnabled) {
-        SDL_PumpEvents();
-    }
+    /* MUGEN-UNLEASHED PATCH: the pump of SDL_PeepEvents moved before EventQueueMutex is taken (see SDL_PumpEvents). */
 
     if (action == SDL_ADDEVENT) {
         int i;
@@ -3313,6 +3306,17 @@ SDL_PeepEvents(SDL12_Event *events12, int numevents, SDL_eventaction action, Uin
 
     if (!EventQueueMutex) {
         return SDL20_SetError("SDL not initialized");
+    }
+
+    /* We don't actually implement an event thread in sdl12-compat, but some
+     * games will only call SDL_PeepEvents(), which doesn't otherwise pump
+     * events, and get stuck when they've consumed all the events.
+     *
+     * Just pumping the event loop here simulates an event thread well enough
+     * for most things. (MUGEN-UNLEASHED PATCH: moved here, outside the lock.)
+     */
+    if (EventThreadEnabled) {
+        SDL_PumpEvents();
     }
 
     SDL20_LockMutex(EventQueueMutex);
@@ -7649,11 +7653,16 @@ SDL_PumpEvents(void)
         }
     }
 
+    /* MUGEN-UNLEASHED PATCH (altered source, D-015): lock order. SDL2's SDL_PushEvent holds its event-watcher lock while it
+     * runs our filter, and the filter takes EventQueueMutex (PushEventIfNotFiltered). The 1.2 pump used to hold
+     * EventQueueMutex while SDL2 pumped (SDL20_PollEvent), where SDL2 itself pushes events and takes the watcher lock:
+     * the opposite order. On Android the UI thread (touch -> SDL_PushEvent) and the engine thread (SDL_PollEvent) then
+     * deadlocked (found on the A065M with the mugen-wd watchdog). Now EventQueueMutex is never held across SDL2's pump. */
+    while (SDL20_PollEvent(&e)) {  /* spin to drain the SDL2 event queue. */ }
+
     if (EventQueueMutex) {
         SDL20_LockMutex(EventQueueMutex);
     }
-
-    while (SDL20_PollEvent(&e)) {  /* spin to drain the SDL2 event queue. */ }
 
     /* If there's a pending KEYDOWN event, and we haven't got a TEXTINPUT
      * event which matches it, then let it through now. */
