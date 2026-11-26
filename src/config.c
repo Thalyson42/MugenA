@@ -279,6 +279,15 @@ int Config_Load(void)
     Ini_GetInt(ini, "stagefit", &g_game->stage_fit);
     Ini_GetInt(ini, "systemfit", &g_game->system_fit);
     g = g_game;
+#if defined(MUGEN_PLATFORM_ANDROID)
+    /* D-013: only the software renderer exists on Android for now. Decided here, before the rules below, because
+     * they derive the colour depth from it: the System renderer draws sprites to 16-bit targets only (Sprite_DrawSoft),
+     * OpenGL asks for 32, and the default mugen.cfg says OpenGL. */
+    if (g->render_mode != RENDER_SYSTEM) {
+        Log_Printf("android: RenderMode %i unsupported, using System (D-013)...", g->render_mode);
+        g->render_mode = RENDER_SYSTEM;
+    }
+#endif
     i = g->render_mode;
     if (i == RENDER_SYSTEM || i == RENDER_OPENGL_SCREEN) {
         g->depth = 16;

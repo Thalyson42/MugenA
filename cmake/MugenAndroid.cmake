@@ -164,6 +164,7 @@ set_target_properties(mugen_sdl12_probe PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(mugen SHARED
   android/app/src/main/cpp/mugen_android_stub.c
+  android/app/src/main/cpp/mugen_watchdog.c
   android/app/src/main/cpp/mugen_selftest.c
   android/app/src/main/cpp/mugen_sdl_probe.c
   android/app/src/main/cpp/mugen_d003_stubs.c
