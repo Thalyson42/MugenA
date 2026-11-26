@@ -243,3 +243,9 @@ Pendente: confirmar D-001..D-006; criar branch android/main e commitar estes doc
 - Device (A065M, build-id 5a5a30b5): engine loads fight data, then aborts in Lua_Init: logcat "FORTIFY: strchr: prevented read past end of buffer". Symbolized in CI (new informational step, android/tools/symbolize-addrs.txt, build-id compared): abort in lgc.c:167 traversetable (strchr on a weak-table mode string) <- propagatemark <- singlestep <- luaC_step <- lua_pushcclosure <- luaopen_os.
 - Cause: Lua 5.1 stores string bytes right after the TString header; FORTIFY sizes the object from the header only. Fix: lua51 is compiled with -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 (cmake/MugenAndroid.cmake). Rest of the engine keeps FORTIFY.
 - Next: owner retests "Start engine" (expect Lua init, then game loop / title screen).
+
+### P3b M2 result: engine reaches the title menu on device; screen diagnostics added
+- Device (A065M): Lua init OK, "Initialize OK", gameflow loop, "Entering mode select". No crash; the process stays up.
+- Visible: black screen, a blinking dark-grey rectangle and a purple bar at the bottom (half width). Looks like menu highlight / simple fills drawn, sprites and fonts (system.sff / .fnt) not. Touch does nothing: no touch->input mapping exists yet (planned, not part of M2).
+- Added (Android only, gfx.c Gfx_AndroidDebugFrame): at frames 30/120/400/1200 logs buffer format, masks and non-black sample count, and saves screen-<frame>.bmp in the data directory (next to mugen.log).
+- Next: owner sends screen-120.bmp (or 400) and the mugen.log lines "android frame ..." to tell a decode/draw problem (sprites) from a presentation problem (compat blit/flip).

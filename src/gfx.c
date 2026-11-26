@@ -281,6 +281,67 @@ static void Gfx_PresentGlScreen(const SDL_Surface *surface)
     free(rgba);
 }
 
+#if defined(MUGEN_PLATFORM_ANDROID)
+/*
+ * Android bring-up diagnostics (P3b): at a few frames, logs the format of the composed screen buffer and how many
+ * pixels are not black, and saves it as screen-<frame>.bmp in the data directory (the working directory), so a
+ * black or garbled screen can be told apart from a presentation problem. Nothing of this exists on Windows.
+ */
+static void Gfx_AndroidDebugFrame(SDL_Surface *surface, SDL_Surface *screen)
+{
+    static int frame = 0;
+    static const int at[] = { 30, 120, 400, 1200 };
+    int i;
+
+    frame++;
+    for (i = 0; i < 4; i++) {
+        if (frame == at[i]) {
+            int x, y, nonblack = 0, colors = 0;
+            unsigned int seen[16] = { 0 };
+            char name[32];
+            if (SDL_MUSTLOCK(surface)) {
+                SDL_LockSurface(surface);
+            }
+            for (y = 0; y < surface->h; y += 4) {
+                for (x = 0; x < surface->w; x += 4) {
+                    unsigned int px = 0;
+                    unsigned char *q = (unsigned char *)surface->pixels + y * surface->pitch
+                                       + x * surface->format->BytesPerPixel;
+                    memcpy(&px, q, surface->format->BytesPerPixel);
+                    if ((px & ~surface->format->Amask) != 0) {
+                        nonblack++;
+                        if (colors < 16) {
+                            int k, known = 0;
+                            for (k = 0; k < colors; k++) {
+                                known |= (seen[k] == px);
+                            }
+                            if (!known) {
+                                seen[colors++] = px;
+                            }
+                        }
+                    }
+                }
+            }
+            if (SDL_MUSTLOCK(surface)) {
+                SDL_UnlockSurface(surface);
+            }
+            Log_Printf("\nandroid frame %d: buffer %dx%d %dbpp pitch %d masks %08x/%08x/%08x/%08x, screen %dx%d %dbpp, "
+                       "non-black samples %d of %d, first colors:",
+                       frame, surface->w, surface->h, surface->format->BitsPerPixel, surface->pitch,
+                       surface->format->Rmask, surface->format->Gmask, surface->format->Bmask,
+                       surface->format->Amask, screen->w, screen->h, screen->format->BitsPerPixel,
+                       nonblack, (surface->w / 4) * (surface->h / 4));
+            for (x = 0; x < colors && x < 8; x++) {
+                Log_Printf(" %08x", seen[x]);
+            }
+            Log_Printf("\n");
+            snprintf(name, sizeof(name), "screen-%d.bmp", frame);
+            SDL_SaveBMP(surface, name);
+        }
+    }
+}
+#endif
+
 /*
  * 0x0046BCF0: g_gfxPresent of the System and OpenGLScreen renderers: shows
  * the screen buffer (sprite `sprite` of set) at (x, y), then flips the video
@@ -314,6 +375,9 @@ void Gfx_Present(SpriteSet *set, int sprite, float x, float y, float w, float h)
         dst.h = 0;
         SDL_UpperBlit(surface, NULL, g_screenSurface, &dst);
         SDL_UpdateRect(g_screenSurface, 0, 0, 0, 0);
+#if defined(MUGEN_PLATFORM_ANDROID)
+        Gfx_AndroidDebugFrame(surface, g_screenSurface);
+#endif
     }
     if (g_videoFlags & VIDEO_HWBLIT) {
         if (g_videoSdlFlags & SDL_DOUBLEBUF) {
