@@ -2,6 +2,10 @@
 
 Uma entrada por conversa (modelo em 04-modelos-de-conversa.md). Mais recente no topo.
 
+### 2026-11-26 · P3b · correção do passo de certificado no CI (conversa P3b #2, continuação)
+O run do CI no commit 1a4baa6 (log do dono): `assembleDebug` **verde** (0 falha de compilação; inclui `mugen_sdl12_probe.c` e o novo link só com `libSDL.so`), APK assinado com o certificado fixo: **SHA-256 `31fdc9f14e1142b1eb23478df92767faae95bfa145f0dd0d3121d99ce6a396ba`** (= D-016). O passo "Print the APK signing certificate" **falhou por bug do meu script**: `keytool` imprime `SHA256:` precedido de TAB e o `sed` só aceitava espaços (`want` vazio). Corrigido com `[[:space:]]*` (testado: bate). Por causa dessa falha os passos seguintes (inclusive "Check the SDL stack ... M1b") **não rodaram**: continuam sem verificação; o novo run diz.
+Pendente: dono aplica o bundle `p3b-fix1.bundle` (1 commit sobre 1a4baa6), push, e manda o log completo do CI (passos do SHA-256 e do SDL). O resto do handoff acima continua valendo.
+
 ### 2026-11-26 · P3b · Passo 0 (assinatura fixa) + M1b (teste SDL 1.2) · conversa P3b #2
 Estado: P3b EM ANDAMENTO. **Passo 0: pronto, falta o CI. M1b: código pronto e lógica validada no host; resultado no aparelho PENDENTE; M1c não começada (só segue se a M1b passar no A065M).**
 Branch/commit: `android/p3b-sdl` a partir de 14c9db3; commits `android(p3b): ...` em cima (`git log 14c9db3..android/p3b-sdl`). **Sem push** (a conversa não tem credencial): entregue como `git bundle create p3b-m1b.bundle android/p3b-sdl` (base 14c9db3; `git fetch p3b-m1b.bundle android/p3b-sdl:android/p3b-sdl`).
