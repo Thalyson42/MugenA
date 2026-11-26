@@ -30,6 +30,10 @@ file(GLOB _lua_sources "${_tp}/lua-5.1.4/src/*.c")
 add_library(lua51 STATIC ${_lua_sources})
 target_include_directories(lua51 PUBLIC "${_tp}/lua-5.1.4/src")
 target_compile_definitions(lua51 PRIVATE LUA_USE_POSIX)
+# Lua 5.1 keeps a string's characters right after its TString header (svalue = (TString*)o + 1). Bionic's FORTIFY
+# computes the object size from the header alone and aborts "strchr: prevented read past end of buffer" in
+# lgc.c traversetable (found on the A065M, symbolized in CI). A false positive of the layout trick: no FORTIFY for Lua.
+target_compile_options(lua51 PRIVATE -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0)
 mugen_android_third_party(lua51)
 
 # libpng 1.2.38 (against the system zlib). The MMX assembler of 1.2.x is x86-only; PUBLIC so that the

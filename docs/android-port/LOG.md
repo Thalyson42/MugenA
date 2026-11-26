@@ -238,3 +238,8 @@ Pendente: confirmar D-001..D-006; criar branch android/main e commitar estes doc
 - Earlier crashes (first-run silent close): Error_Exit -> GameVars_Free -> Match_FreeAssets dereferenced a NULL g->palgroups when the error came before its allocation. Guarded.
 - 64-bit: `calloc(1, 0xC)` for PalGroups (16 bytes on arm64) -> sizeof(PalGroups). Audit of other literal allocation sizes in src/: none left.
 - Next: owner retests "Start engine" (expect to pass the motif load; next likely fight.def/fonts/select screen).
+
+### P3b M2 fix 4: Lua GC aborted by bionic FORTIFY (false positive)
+- Device (A065M, build-id 5a5a30b5): engine loads fight data, then aborts in Lua_Init: logcat "FORTIFY: strchr: prevented read past end of buffer". Symbolized in CI (new informational step, android/tools/symbolize-addrs.txt, build-id compared): abort in lgc.c:167 traversetable (strchr on a weak-table mode string) <- propagatemark <- singlestep <- luaC_step <- lua_pushcclosure <- luaopen_os.
+- Cause: Lua 5.1 stores string bytes right after the TString header; FORTIFY sizes the object from the header only. Fix: lua51 is compiled with -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0 (cmake/MugenAndroid.cmake). Rest of the engine keeps FORTIFY.
+- Next: owner retests "Start engine" (expect Lua init, then game loop / title screen).
