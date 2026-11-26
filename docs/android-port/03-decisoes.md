@@ -132,6 +132,13 @@ Implementa D-002 (A). Fontes em `third_party/`, só com o que o Android usa (cad
 7. **AndroidManifest.** `MugenActivity` com o tema fullscreen e `configChanges` do modelo do SDL (processo e contexto sobrevivem a rotação/teclado/densidade); sem `launchMode` especial.
 **Não verificado (aqui não há NDK nem aparelho):** a compilação do SDL2 com o NDK r27 (`cpu-features.c` do NDK, `-marm` do `SDL_spinlock.c`), a carga das três bibliotecas no aparelho e a janela; é o que o CI Android e o aparelho dizem em M1a.
 
+## D-016 · Assinatura fixa do APK de debug — DECIDIDA (P3b, Passo 0)
+**Problema:** cada run do CI gerava uma chave de debug nova; o Android recusa atualizar um app por cima de outro assinado com outro certificado, então o dono tinha de desinstalar (o que apaga `Android/data/<pacote>`, isto é, o jogo copiado, ver D-005).
+**Decisão:** `android/debug.keystore` **no repo** (PKCS12, alias `androiddebugkey`, senhas de store e de chave `android`, RSA 2048, DN `CN=Android Debug,O=Android,C=US`, validade de 100 anos), usado por `signingConfigs.debug` em `android/app/build.gradle.kts`. É chave **só de debug**: a senha é pública por convenção e o certificado não protege nada; **nunca** assina release. Quem tem o repo pode assinar um APK que atualiza o de debug do dono; é o mesmo modelo de risco da `~/.android/debug.keystore` padrão e só vale para builds de debug/teste.
+**Conferência no CI:** o passo "Print the APK signing certificate" roda `apksigner verify --print-certs` no APK, imprime o SHA-256 do certificado e **falha** se ele não for o do `android/debug.keystore` (`keytool -list`). SHA-256 do certificado atual: `31:FD:C9:F1:4E:11:42:B1:EB:23:47:8D:F9:27:67:FA:AE:95:BF:A1:45:F0:DD:0D:31:21:D9:9C:E6:A3:96:BA` (o mesmo tem de aparecer em todo run).
+**Consequência única:** quem já tem um APK instalado assinado pela chave antiga (aleatória) precisa desinstalar **uma vez** (apaga `Android/data`; refazer o `adb push` do jogo). Dali em diante `adb install -r` / instalar por cima funciona. Se der para fazer antes de desinstalar: `adb pull /sdcard/Android/data/io.github.thalyson42.mugen/files` para guardar o jogo.
+**Release (P12):** chave própria, guardada em GitHub Secrets (keystore em base64 + senhas), nunca no repo; `signingConfigs.release` lê de variáveis de ambiente. `buildTypes.release` não usa a chave de debug.
+
 ### D-010 · Relatório do aparelho de teste (colado pelo dono em 2026-11-24, app de diagnóstico da P1)
 | Item | Valor |
 |---|---|

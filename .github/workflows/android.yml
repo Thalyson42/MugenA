@@ -37,6 +37,18 @@ jobs:
         working-directory: android
         run: ./gradlew --no-daemon assembleDebug
 
+      - name: Print the APK signing certificate (fixed debug key, D-016)
+        run: |
+          apk=$(ls android/app/build/outputs/apk/debug/*.apk)
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$apksigner" verify --print-certs "$apk" | tee build/apk-certs.txt
+          # the certificate must be the one of android/debug.keystore; if it changes, the app cannot be updated in place
+          want=$(keytool -list -v -keystore android/debug.keystore -storepass android 2>/dev/null | sed -n 's/^ *SHA256: *//p' | tr -d ':' | tr 'A-F' 'a-f')
+          got=$(sed -n 's/.*certificate SHA-256 digest: *//p' build/apk-certs.txt | head -1)
+          echo "keystore SHA-256: $want"
+          echo "APK SHA-256:      $got"
+          test -n "$want" && test "$want" = "$got"
+
       - name: Check that the APK carries arm64-v8a only
         run: |
           apk=$(ls android/app/build/outputs/apk/debug/*.apk)

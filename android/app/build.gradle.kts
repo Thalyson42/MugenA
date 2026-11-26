@@ -38,6 +38,18 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 
+    // D-016: a fixed DEBUG key kept in the repo, so that every CI build is signed by the same certificate and Android
+    // updates the installed app in place (a new key per run forced an uninstall, which also wipes Android/data). It is a
+    // debug-only key (public password "android"): never used for release; the release key is P12 (GitHub Secrets).
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("../debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release { isMinifyEnabled = false }
     }
