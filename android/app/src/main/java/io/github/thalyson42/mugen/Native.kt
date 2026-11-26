@@ -36,6 +36,10 @@ object Native {
     @JvmStatic
     external fun platformSelfTest(altDir: String): String
 
+    /** P3b M2: what the next SDL_main runs: 0 = the engine, 1 = the SDL 1.2 mode test of M1b. Set it before starting [MugenActivity]. */
+    @JvmStatic
+    external fun setStartMode(mode: Int)
+
     /** Raises the engine's error screen with a sample text. Call it off the UI thread: it waits for the dialog. */
     @JvmStatic
     external fun testError()

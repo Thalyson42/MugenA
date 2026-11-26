@@ -101,6 +101,13 @@ void        Mugen_PathCacheStats(MugenPathStats *out);
 int         Mugen_SetDataDir(const char *dir);
 const char *Mugen_GetDataDir(void);       /* "" until set */
 
+/* What the next SDL_main (sdlmain.c) runs: the engine, or the SDL 1.2 mode test of P3b M1b (the app's diagnostic button). Set by
+ * the app through JNI before it starts the SDL activity. */
+#define MUGEN_START_ENGINE      0
+#define MUGEN_START_SDL_PROBE   1
+void Mugen_SetStartMode(int mode);
+int  Mugen_GetStartMode(void);
+
 /* Log line to the system log: logcat on Android (tag "mugen"), stderr elsewhere. priority: 0 info, 1 warn, 2 error. */
 void Mugen_LogWrite(int priority, const char *text);
 

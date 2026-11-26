@@ -10,4 +10,9 @@ import org.libsdl.app.SDLActivity
  */
 class MugenActivity : SDLActivity() {
     override fun getLibraries(): Array<String> = arrayOf("SDL2", "SDL", "mugen")
+
+    override fun onResume() {
+        super.onResume()
+        Native.activity = this      // the engine's error dialog (Native.showError) has to appear over this activity
+    }
 }

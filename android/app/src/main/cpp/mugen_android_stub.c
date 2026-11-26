@@ -152,6 +152,15 @@ Java_io_github_thalyson42_mugen_Native_testError(JNIEnv *env, jclass cls)
                     "Non-UTF-8 bytes are made visible: \x83\x65\x83\x58\x83\x67\n\nClipboard tail:\nCan't find file chars\\kfm\\kfm.def\n");
 }
 
+/* P3b M2: what the next SDL_main runs (MUGEN_START_ENGINE or MUGEN_START_SDL_PROBE), set before MugenActivity starts. */
+JNIEXPORT void JNICALL
+Java_io_github_thalyson42_mugen_Native_setStartMode(JNIEnv *env, jclass cls, jint mode)
+{
+    (void)env;
+    (void)cls;
+    Mugen_SetStartMode((int)mode);
+}
+
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
 {
     JNIEnv *env = NULL;

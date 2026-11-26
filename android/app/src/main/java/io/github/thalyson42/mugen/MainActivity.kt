@@ -36,6 +36,7 @@ class MainActivity : Activity() {
     private var nativeInfo = ""
     private var platformInfo = "P3a self-test: running..."
     private var dataDir = ""
+    private var engineInfo = "P3b engine: not started yet (tap \"Start engine\")"
     private var sdlInfo = "P3b SDL 1.2 probe: not run yet (tap \"Run SDL 1.2 probe\")"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -84,6 +85,15 @@ class MainActivity : Activity() {
                 // no stale report: if the probe dies before writing, the report says so instead of showing an old run
                 if (dataDir.isNotEmpty()) File(dataDir, "sdl-probe.txt").delete()
                 sdlInfo = "P3b SDL probe: no report written (the probe crashed or did not start; see logcat -s mugen-sdl)"
+                Native.setStartMode(1)      // MUGEN_START_SDL_PROBE
+                startActivity(Intent(this@MainActivity, MugenActivity::class.java))
+            }
+        }
+        val engineButton = Button(this).apply {
+            text = "Start engine (P3b M2)"
+            setOnClickListener {
+                Native.setStartMode(0)      // MUGEN_START_ENGINE
+                engineInfo = "P3b engine: started; mugen.log is read when this screen comes back"
                 startActivity(Intent(this@MainActivity, MugenActivity::class.java))
             }
         }
@@ -128,6 +138,7 @@ class MainActivity : Activity() {
         root.addView(copy)
         root.addView(errorButton)
         root.addView(sdlButton)
+        root.addView(engineButton)
         root.addView(gl, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 4))
         root.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         setContentView(root)
@@ -142,13 +153,21 @@ class MainActivity : Activity() {
 
     private fun fullReport() =
         "$deviceInfo\n\n$glInfo\n\n--- libmugen.so ---\n$nativeInfo\n\n--- data directory (D-005) ---\n$dataDir\n" +
-            "Copy the M.U.G.E.N 1.1b1 files here (data, chars, stages, sound, font...).\n\n$platformInfo\n\n--- P3b SDL probe ---\n$sdlInfo"
+            "Copy the M.U.G.E.N 1.1b1 files here (data, chars, stages, sound, font...).\n\n$platformInfo\n\n--- P3b SDL probe ---\n$sdlInfo\n\n--- P3b engine: tail of mugen.log (self-test or engine) ---\n$engineInfo"
 
     override fun onResume() {
         super.onResume()
         Native.activity = this
         // The probe's SDL_main leaves its report in the data directory; show the latest one (if the activity ran).
         if (dataDir.isNotEmpty()) {
+            val log = File(dataDir, "mugen.log")
+            if (log.exists()) {      // also after a crash that restarted the app: the log is what is left
+                engineInfo = try {
+                    val t = log.readText(Charsets.ISO_8859_1)
+                    if (t.length > 8000) "...\n" + t.takeLast(8000) else t
+                } catch (e: Exception) { "mugen.log unreadable: $e" }
+                refresh()
+            }
             val f = File(dataDir, "sdl-probe.txt")
             if (f.exists()) {
                 sdlInfo = try { f.readText() } catch (e: Exception) { "sdl-probe.txt unreadable: $e" }

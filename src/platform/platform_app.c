@@ -51,6 +51,18 @@ int Mugen_SetDataDir(const char *dir)
     return 1;
 }
 
+static volatile int g_startMode = MUGEN_START_ENGINE;
+
+void Mugen_SetStartMode(int mode)
+{
+    g_startMode = mode;
+}
+
+int Mugen_GetStartMode(void)
+{
+    return g_startMode;
+}
+
 const char *Mugen_GetDataDir(void)
 {
     return g_dataDir;

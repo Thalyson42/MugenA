@@ -13,7 +13,6 @@
 #include <sys/stat.h>
 #include <time.h>
 
-extern char g_p3aLastError[256];
 
 static char *g_rep;
 static size_t g_cap;

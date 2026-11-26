@@ -1,4 +1,6 @@
-/* Android port, P3b M1a/M1b: the SDL_main that SDLActivity runs while the engine is not wired in yet (D-002, D-015).
+/* Android port, P3b M1a/M1b/M2: the SDL 1.2 mode test, run instead of the engine when the app asks for it (D-002, D-015).
+ * Since M2 the exported SDL_main is the engine's (src/sdlmain.c), which calls Mugen_SdlProbeMain when the start mode is
+ * MUGEN_START_SDL_PROBE. What follows is the M1b text, still true for the test itself:
  *
  * SDLActivity (Java) loads libSDL2.so, libSDL.so (sdl12-compat) and this library, then libSDL2.so calls the exported
  * function SDL_main on its own thread. This file includes NO SDL header and calls NO SDL function: libmugen.so links
@@ -61,12 +63,10 @@ static void DataDirFromSdl2(void)
     }
 }
 
-int SDL_main(int argc, char *argv[])
+int Mugen_SdlProbeMain(void)
 {
     char path[1024];
     int rc;
-    (void)argc;
-    (void)argv;
 
     if (Mugen_GetDataDir()[0] == '\0') {
         DataDirFromSdl2();
@@ -76,12 +76,12 @@ int SDL_main(int argc, char *argv[])
         g_report = fopen(path, "w");
     }
 
-    Say("SDL_main entered (P3b M1b, SDL 1.2 API through sdl12-compat)");
+    Say("Mugen_SdlProbeMain entered (P3b M1b, SDL 1.2 API through sdl12-compat)");
     Say("data dir: %s", Mugen_GetDataDir()[0] != '\0' ? Mugen_GetDataDir() : "(none)");
 
     rc = Mugen_Sdl12ModeTest(SayLine, PROBE_SECONDS);
 
-    Say("SDL_main done (result %s)", rc == 0 ? "PASS" : "FAIL");
+    Say("Mugen_SdlProbeMain done (result %s)", rc == 0 ? "PASS" : "FAIL");
     if (g_report != NULL) {
         fclose(g_report);
         g_report = NULL;
