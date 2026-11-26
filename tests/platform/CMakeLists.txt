@@ -19,7 +19,7 @@ add_executable(platform_tests
   "${ROOT}/src/textring.c"
   "${ROOT}/src/util.c")
 target_include_directories(platform_tests PRIVATE
-  "${ROOT}/src" "${ROOT}/src/platform/stubs" "${ROOT}/third_party/glew-1.5.4/include" "${ROOT}/third_party/sdk/include/SDL"
+  "${ROOT}/src" "${ROOT}/src/platform/stubs" "${ROOT}/src/platform/stubs/SDL_ext" "${ROOT}/third_party/glew-1.5.4/include" "${ROOT}/third_party/sdl12-compat/include/SDL"
   "${ROOT}/third_party/minizip-0.15" "${ROOT}/third_party/lua-5.1.4/src" "${ROOT}/third_party/libpng-1.2.38"
   "${ROOT}/third_party/cgltf-1.14" "${ROOT}/third_party/stb")
 target_compile_definitions(platform_tests PRIVATE MUGEN_PLATFORM_ANDROID=1)
