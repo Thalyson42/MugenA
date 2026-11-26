@@ -91,9 +91,13 @@ int Keyboard_SetEventHandler(KeyEventFn fn)
         return 0;
     }
     g_keyEventHandler = fn;
+#if !defined(MUGEN_PLATFORM_ANDROID)
     if (fn != NULL) {
         SDL_EnableUNICODE(1);
     }
+#endif
+    /* Android: sdl12-compat turns EnableUNICODE into SDL_StartTextInput, which pops up the soft keyboard over the
+     * game. Key events still arrive (unicode field 0); only text typed into the debug console is affected. */
     return 1;
 }
 

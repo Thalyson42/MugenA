@@ -255,3 +255,6 @@ Pendente: confirmar D-001..D-006; criar branch android/main e commitar estes doc
 - Same log: frames stop after ~120 (right when the owner touched the screen) and the UI thread is reported "not responding, waited 10 s for MotionEvent": a freeze on first touch (SDL2 touch -> compat mouse events), cause unknown. No stack was available, so a diagnostic watchdog (android/app/src/main/cpp/mugen_watchdog.c, tag mugen-wd) was added: no frame for 3 s -> every thread logs state, wait channel and native backtrace (pc relative to libmugen.so).
 - SDL_SaveBMP result and cwd are now logged ("android: SDL_SaveBMP screen-N.bmp -> r in <cwd>"); the BMPs were not found by the owner.
 - Next: retest. If it freezes again: send the logcat with the mugen-wd lines; I symbolize them in CI (same build-id).
+
+### P3b M2 fix 6: soft keyboard popping up
+- Keyboard_SetEventHandler calls SDL_EnableUNICODE(1); sdl12-compat maps it to SDL_StartTextInput, so Android shows the IME at start. Skipped on Android (unicode field stays 0; only the debug console text is affected). Revisit with the touch/gamepad layer (P6).
