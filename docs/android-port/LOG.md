@@ -10,7 +10,7 @@ SDL probe: `SDL_main entered (SDL2 2.32.10, platform Android)`, driver `Android`
 Pontos para a M1b/M4:
 - O formato do display aparece como `RGB565` na 1a execução e `RGBX8888` na 2a; o log tem `INFO: pixel format wanted RGB24, got RGBX8888` (tag `mugen`, nível E, thread diferente) a cada retomada; provavelmente informativo, **não confirmado** quem emite. Conferir que `SDL_SetVideoMode(...,16,...)` entrega uma superfície 16 bpp pela API 1.2 (condição de D-002).
 - A janela sai em **retrato** (720x1600); o jogo é paisagem. Decidir a orientação na M4.
-- No último auto-teste, `data\mugen.cfg` e `dataight.def` deram **not found** (antes, em 25/11 16:06, tinham sido achados); `chars`, `stages` e `font` foram achados. Provável causa: reinstalar o APK apaga `Android/data/<pacote>` e o jogo foi copiado de novo só em parte. **Conferir** com `adb shell ls /sdcard/Android/data/io.github.thalyson42.mugen/files/data` e refazer o `adb push` se faltar; a M2/M3 precisa de `data/mugen.cfg` e `data/fight.def`.
+- No último auto-teste, `data\mugen.cfg` e `data\fight.def` deram **not found** (antes, em 25/11 16:06, tinham sido achados); `chars`, `stages` e `font` foram achados. Provável causa: reinstalar o APK apaga `Android/data/<pacote>` e o jogo foi copiado de novo só em parte. **Conferir** com `adb shell ls /sdcard/Android/data/io.github.thalyson42.mugen/files/data` e refazer o `adb push` se faltar; a M2/M3 precisa de `data/mugen.cfg` e `data/fight.def`.
 Próxima: M1b (ver 02-fases/LOG da M1a): `SDL_SetVideoMode(640,480,16,SDL_HWSURFACE)` com um quadro visível pela API SDL 1.2; se falhar, parar e decidir D-002 (B).
 
 ### 2026-11-25 · P3b · M1a — SDL2 + sdl12-compat vendorizados, SDLActivity e SDL_main · conversa P3b #1
