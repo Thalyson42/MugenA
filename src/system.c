@@ -237,6 +237,16 @@ void System_Init(void)
     if (mode < RENDER_SYSTEM || mode > RENDER_OPENGL) {
         Error_Exit();
     }
+#if defined(MUGEN_PLATFORM_ANDROID)
+    /* D-013: no desktop OpenGL on Android (SDL2 offers only GLES), so only the
+     * software renderer is used until the GLES path exists. mugen.cfg of the
+     * original asks for RenderMode = OpenGL by default. */
+    if (mode != RENDER_SYSTEM) {
+        Log_Printf("android: RenderMode %i unsupported, using System (D-013)...", mode);
+        g->render_mode = RENDER_SYSTEM;
+        mode = RENDER_SYSTEM;
+    }
+#endif
     g_renderMode = mode;
     Gfx_SelectRenderer(mode);
     Log_Printf("trying %ix%ix%i mode 0x%X...", g->video_width, g->video_height, g->depth, 0);
@@ -244,7 +254,11 @@ void System_Init(void)
     g = g_game;
     if (!Video_SetMode((int)g->game_coord[0], (int)g->game_coord[1], g->video_width, g->video_height, g->depth,
                        g->video_flags)) {
+#if defined(MUGEN_PLATFORM_ANDROID)
+        Log_Printf("failed (%s). ", SDL_GetError());
+#else
         Log_Printf("failed. ");
+#endif
         Error_Exit();
     }
     Log_Printf("success...");

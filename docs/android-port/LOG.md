@@ -226,3 +226,9 @@ Pendente: confirmar D-001..D-006; criar branch android/main e commitar estes doc
 - Verified on host with ASan (705-line CRLF cfg): old code heap-buffer-overflow at ini.c:282, new code clean, [Video] found.
 - Audit of other alloc sites with hard-coded sizes found no other pointer-size cases.
 - Next: owner retests "Start engine" and sends report/logcat. Open: first-run silent close (~1 s) not yet explained.
+
+### P3b M2 fix 2: RenderMode forced to System on Android (D-013)
+- Device log (A065M, mugen.cfg of 1.1b1): engine passes config/timer/input/sound stubs, then "render mode 2_20, trying 1280x720x32 ... failed". Render mode 2 = OpenGL (original default); SDL_SetVideoMode(SDL_OPENGL) fails (SDL2 on Android has only GLES, GL 1.1/GLEW are stubs) and Video_SetMode does not retry for OpenGL.
+- Change (system.c, Android only): any RenderMode other than System is replaced by System, logged as "android: RenderMode N unsupported, using System (D-013)". "failed (<SDL_GetError>)" now logs the SDL error on Android.
+- Observed: after the error the engine thread blocks in the message box and does not pump events; the UI thread then times out on focus ("not responding", 10 s). Expected to disappear once the engine reaches its main loop; revisit in M3 (events during long init).
+- Next: owner retests "Start engine"; expect to get past video init (next: font/TTF stub, fight.def, motif).
