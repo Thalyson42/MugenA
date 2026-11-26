@@ -78,6 +78,22 @@ jobs:
           echo "unstripped copy: $full"
           test -z "$full" || nm "$full" | grep -E ' [Tt] (Mugen_fopen|Mugen_ResolvePath|Timer_WaitFrame|Log_Init|File_Find|Mugen_EngineMain|Mugen_SdlProbeMain|System_Init|Mix_QuerySpecEx)$' | sort -u || true
 
+      - name: Symbolize device crash addresses (informational)
+        run: |
+          # android/tools/symbolize-addrs.txt: hex pcs from a device tombstone (libmugen.so offsets). Prints the build-id
+          # so it can be compared with the BuildId in the tombstone, then function and line for each pc.
+          full=$(find android/app/.cxx android/app/build/intermediates/cxx -path '*arm64-v8a*' -name libmugen.so 2>/dev/null | head -1)
+          echo "unstripped: $full"
+          test -n "$full" || exit 0
+          readelf -n "$full" | grep -i 'Build ID' || true
+          sym=$(find "$ANDROID_HOME/ndk" -name llvm-symbolizer | head -1)
+          echo "symbolizer: $sym"
+          test -n "$sym" || exit 0
+          while read -r a; do
+            [ -n "$a" ] || continue
+            echo "== 0x$a"; "$sym" --obj="$full" --functions=linkage --inlining "0x$a" | head -6 || true
+          done < android/tools/symbolize-addrs.txt
+
       - name: Check the SDL stack in the APK (P3b M1a/M1b)
         run: |
           apk=$(ls android/app/build/outputs/apk/debug/*.apk)
