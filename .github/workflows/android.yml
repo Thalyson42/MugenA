@@ -76,7 +76,7 @@ jobs:
           echo "unstripped copy: $full"
           test -z "$full" || nm "$full" | grep -E ' [Tt] (Mugen_fopen|Mugen_ResolvePath|Timer_WaitFrame|Log_Init|File_Find)$' | sort -u || true
 
-      - name: Check the SDL stack in the APK (P3b M1a)
+      - name: Check the SDL stack in the APK (P3b M1a/M1b)
         run: |
           apk=$(ls android/app/build/outputs/apk/debug/*.apk)
           # the three native libraries side by side: libSDL2.so (SDL2), libSDL.so (sdl12-compat), libmugen.so
@@ -91,9 +91,17 @@ jobs:
           # NOT link libSDL2.so (it finds it with dlopen, under the patched name)
           so=$(find android/app/build -path '*arm64-v8a*' -name libmugen.so | head -1)
           nm -D --defined-only "$so" | grep -E ' T SDL_main$'
-          readelf -d "$so" | grep -E 'NEEDED.*(libSDL2\.so|libSDL\.so)'
+          # M1b: libmugen.so links libSDL.so (the SDL 1.2 API) and NOT libSDL2.so: both export the same SDL_* names, and the
+          # first NEEDED wins the binding (D-015, item 5 amended). The SDL 1.2 calls of the test are undefined in libmugen.so
+          # and defined in libSDL.so.
+          readelf -d "$so" | grep -E 'NEEDED.*libSDL\.so'
+          if readelf -d "$so" | grep -q 'NEEDED.*libSDL2'; then echo 'libmugen.so must not link libSDL2.so'; exit 1; fi
+          for f in SDL_Init SDL_SetVideoMode SDL_Flip SDL_UpperBlit SDL_MapRGB SDL_PollEvent; do
+            nm -D --undefined-only "$so" | grep -E " U $f\$"
+          done
           compat=$(find android/app/build -path '*arm64-v8a*' -name libSDL.so | head -1)
           readelf -d "$compat" | grep NEEDED
+          for f in SDL_SetVideoMode SDL_Flip; do nm -D --defined-only "$compat" | grep -E " T $f\$"; done
           if readelf -d "$compat" | grep -q 'NEEDED.*libSDL2'; then echo 'libSDL.so must not link libSDL2.so'; exit 1; fi
           strings -a "$compat" | grep -x 'libSDL2.so'
           if strings -a "$compat" | grep -q 'libSDL2-2.0.so.0'; then echo 'unpatched dlopen name in libSDL.so'; exit 1; fi

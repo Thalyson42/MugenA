@@ -159,23 +159,30 @@ endif()
 
 # The engine library loaded by the Kotlin app. P3a: it links the platform layer and the engine subset above, and exposes
 # them through JNI (initialisation, self-test, error dialog); the rest of the engine joins in P3b.
-# P3b M1a/M1b: SDL_main, the entry point SDLActivity runs (SDL2 API, then the SDL 1.2 mode test). It is an object library of
-# its own because it must see the SDL 2 headers, whose file names collide with the SDL 1.2 headers of the engine.
-add_library(mugen_sdl_probe OBJECT android/app/src/main/cpp/mugen_sdl_probe.c)
-target_include_directories(mugen_sdl_probe PRIVATE "${_tp}/SDL2/include")
-target_compile_options(mugen_sdl_probe PRIVATE -ffp-contract=off -fsigned-char -Wall)
-set_target_properties(mugen_sdl_probe PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# P3b M1b: SDL_main (mugen_sdl_probe.c, no SDL header) runs the SDL 1.2 mode test (mugen_sdl12_probe.c). That test is an
+# object library of its own with ONLY the sdl12-compat headers on its include path: the SDL 1.2 and SDL 2 headers share
+# file names, so a file sees one family or the other, never both. M1c replaces both with the engine's own SDL_main.
+add_library(mugen_sdl12_probe OBJECT android/app/src/main/cpp/mugen_sdl12_probe.c)
+target_include_directories(mugen_sdl12_probe PRIVATE "${_tp}/sdl12-compat/include/SDL" android/app/src/main/cpp)
+target_compile_options(mugen_sdl12_probe PRIVATE -ffp-contract=off -fsigned-char -Wall -Wextra -Wno-unused-parameter)
+set_target_properties(mugen_sdl12_probe PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(mugen SHARED
   android/app/src/main/cpp/mugen_android_stub.c
   android/app/src/main/cpp/mugen_selftest.c
-  $<TARGET_OBJECTS:mugen_sdl_probe>)
+  android/app/src/main/cpp/mugen_sdl_probe.c
+  $<TARGET_OBJECTS:mugen_sdl12_probe>)
 target_include_directories(mugen PRIVATE ${MUGEN_ANDROID_ENGINE_INCLUDES})
 target_compile_definitions(mugen PRIVATE MUGEN_PLATFORM_ANDROID=1)
 # R2 (docs/android-port/01-analise-do-repo.md) and D-012/D-014: the engine flags, -fsigned-char included, on libmugen.so too.
 target_compile_options(mugen PRIVATE ${MUGEN_ANDROID_ENGINE_FLAGS} -Wall)
+# SDL: libmugen.so links libSDL.so (sdl12-compat, the SDL 1.2 API) and NOT libSDL2.so. Both export the same SDL_* names with
+# different ABIs, and a symbol is bound in the order of the NEEDED entries: with libSDL2.so in the list, the engine's SDL_Init,
+# SDL_PollEvent, SDL_MapRGB... would bind to SDL 2 (D-015, item 5 amended). libSDL2.so is still built and packaged (add_dependencies),
+# loaded first by SDLActivity, and found by the compat library with dlopen. LINK_ONLY: no SDL headers leak into libmugen's files.
 target_link_libraries(mugen PRIVATE mugen_p3a mugen_platform lua51 png12 minizip cgltf stb_image
-  $<LINK_ONLY:SDL2> $<LINK_ONLY:SDL12> log android ${MUGEN_ZLIB})   # LINK_ONLY: no SDL headers leak into libmugen's own files
+  $<LINK_ONLY:SDL12> log android ${MUGEN_ZLIB})
+add_dependencies(mugen SDL2 SDL12)
 target_link_options(mugen PRIVATE ${MUGEN_ANDROID_LINK_FLAGS})
 if(MUGEN_ANDROID_BUILD_CORE)
   add_dependencies(mugen mugen_core)   # built with the library, but not linked into it until P3b

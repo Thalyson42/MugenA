@@ -36,7 +36,7 @@ class MainActivity : Activity() {
     private var nativeInfo = ""
     private var platformInfo = "P3a self-test: running..."
     private var dataDir = ""
-    private var sdlInfo = "P3b SDL probe: not run yet (tap \"Run SDL probe\")"
+    private var sdlInfo = "P3b SDL 1.2 probe: not run yet (tap \"Run SDL 1.2 probe\")"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,7 +79,7 @@ class MainActivity : Activity() {
             setOnClickListener { thread(name = "p3a-error") { Native.testError() } }
         }
         val sdlButton = Button(this).apply {
-            text = "Run SDL probe (P3b, 20 s)"
+            text = "Run SDL 1.2 probe (P3b M1b, 15 s)"
             setOnClickListener {
                 // no stale report: if the probe dies before writing, the report says so instead of showing an old run
                 if (dataDir.isNotEmpty()) File(dataDir, "sdl-probe.txt").delete()
