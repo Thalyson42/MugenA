@@ -219,3 +219,10 @@ Decididas D-001 (arm64-v8a nativo) e D-010 (A06 5G; ordem software→GLES→Vulk
 Estado da fase: EM ANDAMENTO
 Feito: análise do repo (commit cc94cfe) e criação de docs/android-port/ (README, 01, 02, 03, 04).
 Pendente: confirmar D-001..D-006; criar branch android/main e commitar estes docs.
+
+### P3b M2 fix: ini.c 64-bit capacity bug
+- Device (A065M): "Can't access [Video] / Error reading data/mugen.cfg".
+- Cause: `Ini_Parse` sized its line-pointer arrays in bytes assuming 4-byte pointers (0x400 per 256 lines); on arm64 this overflowed the heap once a file passed 256 lines. Now sized as `capacity * sizeof(char *)`.
+- Verified on host with ASan (705-line CRLF cfg): old code heap-buffer-overflow at ini.c:282, new code clean, [Video] found.
+- Audit of other alloc sites with hard-coded sizes found no other pointer-size cases.
+- Next: owner retests "Start engine" and sends report/logcat. Open: first-run silent close (~1 s) not yet explained.

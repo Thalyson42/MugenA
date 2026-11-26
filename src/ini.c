@@ -140,7 +140,6 @@ Ini *Ini_Parse(Stream *s, int mode)
     int keep_src = mode == INI_MODE_EDIT || mode == INI_MODE_TRACK;
     IniSource *src = NULL;
     int lines_cap = 0x100;
-    int lines_bytes;
     int groups_cap = 0x40;
     int groups_bytes;
     long start;
@@ -170,7 +169,7 @@ Ini *Ini_Parse(Stream *s, int mode)
         }
         if (keep_raw) {
             src->src_cap = 0x100;
-            src->src_lines = Mem_Calloc(1, 0x400);
+            src->src_lines = Mem_Calloc(src->src_cap + 1, sizeof(char *));   /* 64-bit: was 0x400 bytes (4 per pointer) */
             if (src->src_lines == NULL) {
                 Ini_Free(ini);
                 return NULL;
@@ -218,7 +217,6 @@ Ini *Ini_Parse(Stream *s, int mode)
         goto done;
     }
     groups_bytes = 0x200;
-    lines_bytes = 0x800;
     do {
         int len, first, i;
         char *line;
@@ -226,7 +224,7 @@ Ini *Ini_Parse(Stream *s, int mode)
         if (keep_raw) {
             char *raw;
             if (src->src_count + 1 >= src->src_cap) {
-                char **grown = realloc(src->src_lines, src->src_cap * sizeof(char *) + 0x400);
+                char **grown = realloc(src->src_lines, (src->src_cap + 0x100 + 1) * sizeof(char *));   /* 64-bit: room for the grown capacity */
                 if (grown == NULL) {
                     goto fail;
                 }
@@ -282,20 +280,19 @@ Ini *Ini_Parse(Stream *s, int mode)
             ini->lines[ini->line_count] = out;
             ini->line_count++;
             if (ini->line_count >= lines_cap) {
-                char **grown = realloc(ini->lines, lines_bytes);
+                char **grown = realloc(ini->lines, (lines_cap + 0x100 + 1) * sizeof(char *));   /* 64-bit: capacity after growth, 8 bytes per pointer */
                 if (grown == NULL) {
                     goto fail;
                 }
                 ini->lines = grown;
                 if (keep_src) {
-                    int *map = realloc(src->line_map, lines_bytes);
+                    int *map = realloc(src->line_map, (lines_cap + 0x100 + 1) * sizeof(int));
                     if (map == NULL) {
                         goto fail;
                     }
                     src->line_map = map;
                 }
                 lines_cap += 0x100;
-                lines_bytes += 0x400;
             }
             if (*line == '[' && buf[len - 1] == ']') {
                 ini->group_lines[ini->group_count] = ini->line_count - 1;
