@@ -100,13 +100,15 @@ set(MUGEN_ANDROID_ENGINE_FLAGS
   -Werror=pointer-to-int-cast -Werror=int-to-pointer-cast -Werror=implicit-function-declaration
   -Werror=incompatible-pointer-types)
 
-# Include order matters: the stubs (GL 1.1, libresample) come before everything else. The SDL 1.2 headers are
-# those of the Windows SDK and the GLEW header is only for model.c; both are P2 stand-ins, see D-013 (they go away in P3b).
+# Include order matters: the stubs (GL 1.1, libresample) come before everything else. The SDL 1.2 headers are those of
+# sdl12-compat (M1c; the Windows SDK ones and sdl_config_posix.h of D-013 are gone from this path); SDL_mixer.h and SDL_ttf.h
+# are copies in src/platform/stubs/SDL_ext until D-003 (M2). The GLEW header is only for model.c, a P2 stand-in (D-013).
 set(MUGEN_ANDROID_ENGINE_INCLUDES
   src
   src/platform/stubs
+  src/platform/stubs/SDL_ext
   "${_tp}/glew-1.5.4/include"
-  "${_tp}/sdk/include/SDL")
+  "${_tp}/sdl12-compat/include/SDL")
 
 # ---- P3a: the platform layer (no SDL) --------------------------------------------------------------------------
 add_library(mugen_platform STATIC

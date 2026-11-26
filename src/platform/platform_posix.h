@@ -24,7 +24,6 @@
 #include <unistd.h>
 #include <dlfcn.h>
 
-#include "sdl_config_posix.h"   /* before any SDL header; see that file */
 
 #ifdef __cplusplus
 extern "C" {

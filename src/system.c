@@ -11,7 +11,9 @@
 #endif
 #include <SDL.h>
 #include <SDL_mixer.h>
-#include <SDL_syswm.h>
+#if defined(MUGEN_PLATFORM_WIN32)
+#include <SDL_syswm.h>      /* only the Win32 window handle code uses it */
+#endif
 #include <SDL_ttf.h>
 #define HAVE_STRUCT_TIMESPEC 1      /* the CRT's time.h already has it */
 #include <pthread.h>

@@ -270,12 +270,56 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
     return 0;
 }
 
-#else /* !MUGEN_PLATFORM_WIN32 */
+#else /* !MUGEN_PLATFORM_WIN32: Android (P3b M1c, D-015 item 6) */
 
 /*
- * Android has no WinMain: the process is started by the Java/Kotlin activity and enters the engine through JNI.
- * TODO(P3): that entry point (and D-002, the SDL layer) lives in src/platform/. Nothing to compile here for now.
+ * The entry point on Android. SDLActivity (Java) loads libSDL2.so, libSDL.so (sdl12-compat) and libmugen.so, then libSDL2.so
+ * calls the exported SDL_main on its own thread. This is the counterpart of WinMain + console_main above: it does what
+ * they do for the engine (stdout/stderr go to the log, SDL is started with SDL_INIT_NOPARACHUTE, SDL_Quit at the end) and
+ * calls the engine's own entry, main.c's main, which is compiled as Mugen_EngineMain. SDL_main.h of SDL 1.2 renames main
+ * only on Windows and macOS, hence the explicit name. The window and the video surface are made later by the engine, through
+ * SDL_SetVideoMode (video.c); the 16 bpp mode of that call was verified on the device (D-002 condition 3, M1b).
+ *
+ * Not the Windows behaviour: no exit() (the process belongs to the app: returning lets SDLActivity finish), no
+ * stdout.txt/stderr.txt files (logcat and mugen.log instead, D-014), no command line (the activity passes only the program name).
+ * This file and the engine call only the SDL 1.2 API: libmugen.so links libSDL.so and not libSDL2.so (D-015 item 5b), so
+ * the one SDL 2 function needed, the app's data folder, is looked up by dlsym in the already loaded libSDL2.so.
  */
-typedef int MugenSdlMainIsWin32Only;
+extern int Mugen_EngineMain(int argc, char *argv[]);   /* main.c */
+
+static void DataDirFromSdl2(void)
+{
+    typedef const char *(*PathFn)(void);
+    void *lib = dlopen("libSDL2.so", RTLD_NOW | RTLD_NOLOAD);
+    PathFn fn = lib != NULL ? (PathFn)dlsym(lib, "SDL_AndroidGetExternalStoragePath") : NULL;
+    const char *dir = fn != NULL ? fn() : NULL;
+
+    /* normally the app has set it already (Native.initPlatform); this is for a process started straight into the activity */
+    if (dir != NULL) {
+        Mugen_SetDataDir(dir);
+    }
+}
+
+int SDL_main(int argc, char *argv[])
+{
+    static char *no_args[] = {"mugen", NULL};
+    int status;
+
+    if (argc < 1 || argv == NULL || argv[0] == NULL) {
+        argc = 1;
+        argv = no_args;
+    }
+    if (Mugen_GetDataDir()[0] == '\0') {
+        DataDirFromSdl2();
+    }
+    Mugen_StdioToLog(NULL);
+    if (SDL_Init(SDL_INIT_NOPARACHUTE) < 0) {
+        Mugen_ShowError("SDL_main() error", SDL_GetError());
+        return 0;
+    }
+    status = Mugen_EngineMain(argc, argv);
+    SDL_Quit();
+    return status;
+}
 
 #endif /* MUGEN_PLATFORM_WIN32 */

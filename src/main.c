@@ -6,6 +6,12 @@
  */
 #include "mugen.h"
 
+#if defined(MUGEN_PLATFORM_ANDROID)
+/* SDL 1.2's SDL_main.h renames main to SDL_main only on Windows and macOS. On Android the app's SDL_main is in sdlmain.c
+ * (it prepares the process, as SDLmain's WinMain did) and calls this function. */
+#define main Mugen_EngineMain
+#endif
+
 /* 0x00421500 (SDL.h renames main to SDL_main) */
 int main(int argc, char *argv[])
 {
