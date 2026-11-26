@@ -2700,6 +2700,9 @@ void Match_FreeAssets(void)
     GameVars *g = g_game;
     PalGroups *pg = (PalGroups *)g->palgroups;
 
+    if (pg == NULL) {
+        return;     /* error exit before the palgroup array was created */
+    }
     if (pg->entries != NULL) {
         free(pg->entries);
         ((PalGroups *)g->palgroups)->entries = NULL;

@@ -741,8 +741,18 @@ struct Mix_Chunk *Snd_DecodeWavResampled(Stream *s, int *status)
         wav_reader_close(reader);
         return NULL;
     }
-    /* Not checked for NULL in the original either. */
+    /* Not checked for NULL in the original; it is NULL when libresample cannot open a session
+     * (the Android stub, D-003: resample_open returns NULL). The sound is then not loaded and
+     * the caller carries on, as for any WAV that cannot be decoded. */
     session = g_sndResampler->begin(g_sndResampler, &info);
+    if (session == NULL) {
+        wav_reader_close(reader);
+        free(out_buf);
+        if (status != NULL) {
+            *status = WAV_ERR_UNKNOWN;
+        }
+        return NULL;
+    }
     in_buf = calloc(session->vtbl->in_block(session), in_frame);
     if (in_buf == NULL) {
         g_outOfMemory = 1;

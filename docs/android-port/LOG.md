@@ -232,3 +232,9 @@ Pendente: confirmar D-001..D-006; criar branch android/main e commitar estes doc
 - Change (system.c, Android only): any RenderMode other than System is replaced by System, logged as "android: RenderMode N unsupported, using System (D-013)". "failed (<SDL_GetError>)" now logs the SDL error on Android.
 - Observed: after the error the engine thread blocks in the message box and does not pump events; the UI thread then times out on focus ("not responding", 10 s). Expected to disappear once the engine reaches its main loop; revisit in M3 (events during long init).
 - Next: owner retests "Start engine"; expect to get past video init (next: font/TTF stub, fight.def, motif).
+
+### P3b M2 fix 3: sound decode NULL session, palgroups size, error-exit crash
+- Device log (A065M): with System renderer the engine now passes video, fonts, options, system.def and system.spr, then crashes in Snd_DecodeWavResampled (system.snd). Cause: libresample stub (D-003) makes resample_open return NULL, Resampler_Open returns NULL, and the unchecked `session->vtbl` dereference faults. Now the sound is not loaded (status WAV_ERR_UNKNOWN) and the caller continues, as for any undecodable WAV. Expected: no sound until P4.
+- Earlier crashes (first-run silent close): Error_Exit -> GameVars_Free -> Match_FreeAssets dereferenced a NULL g->palgroups when the error came before its allocation. Guarded.
+- 64-bit: `calloc(1, 0xC)` for PalGroups (16 bytes on arm64) -> sizeof(PalGroups). Audit of other literal allocation sizes in src/: none left.
+- Next: owner retests "Start engine" (expect to pass the motif load; next likely fight.def/fonts/select screen).

@@ -1255,7 +1255,7 @@ int GameVars_Init(void)
         Error_Printf("Can't init afterimages.\n");
         return 0;
     }
-    palgroups = calloc(1, 0xC);
+    palgroups = calloc(1, sizeof(PalGroups));   /* was 0xC: 16 bytes with 8-byte pointers */
     if (palgroups == NULL) {
         g_outOfMemory = 1;
     }
