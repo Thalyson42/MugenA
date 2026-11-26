@@ -70,11 +70,13 @@ jobs:
           # The JNI entry points are in the dynamic symbol table (also in the stripped copy inside the APK).
           so=$(find android/app/build -path '*arm64-v8a*' -name libmugen.so | head -1)
           test -n "$so"
-          nm -D --defined-only "$so" | grep -E 'Java_io_github_thalyson42_mugen_Native_(initPlatform|platformSelfTest|testError)'
+          for f in initPlatform platformSelfTest testError setStartMode; do
+            nm -D --defined-only "$so" | grep -E " T Java_io_github_thalyson42_mugen_Native_$f\$"
+          done
           # The engine's own functions are local symbols: only the unstripped copy under .cxx has them (informational).
           full=$(find android/app/.cxx android/app/build/intermediates/cxx -path '*arm64-v8a*' -name libmugen.so 2>/dev/null | head -1)
           echo "unstripped copy: $full"
-          test -z "$full" || nm "$full" | grep -E ' [Tt] (Mugen_fopen|Mugen_ResolvePath|Timer_WaitFrame|Log_Init|File_Find)$' | sort -u || true
+          test -z "$full" || nm "$full" | grep -E ' [Tt] (Mugen_fopen|Mugen_ResolvePath|Timer_WaitFrame|Log_Init|File_Find|Mugen_EngineMain|Mugen_SdlProbeMain|System_Init|Mix_QuerySpecEx)$' | sort -u || true
 
       - name: Check the SDL stack in the APK (P3b M1a/M1b)
         run: |
