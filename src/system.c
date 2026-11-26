@@ -1495,6 +1495,11 @@ void System_OnFocusLost(int gained)
 /* 0x0041E370: undoes System_OnFocusLost and resynchronises the keyboard state. */
 void System_OnFocusGained(int gained)
 {
+#if defined(MUGEN_PLATFORM_ANDROID)
+    /* Back from the background: SDL2 blocks the pump while the app is paused, so the clock jumped. Make "now" frame 0
+     * again instead of running every missed frame at once (P3b M3). */
+    Timer_ResetFrame();
+#endif
     g_game->window_active = 1;
     Keyboard_SyncState();
     Input_ResetState();

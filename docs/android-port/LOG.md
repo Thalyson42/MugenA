@@ -264,3 +264,10 @@ Pendente: confirmar D-001..D-006; criar branch android/main e commitar estes doc
 - Freeze on first touch, from the mugen-wd dump: UI thread in onNativeTouch -> SDL_PushEvent -> compat filter -> SDL_LockMutex; engine thread in compat SDL_PollEvent -> SDL_PumpEvents -> SDL2 SDL_PollEvent -> SDL_PushEvent -> SDL_LockMutex. Opposite lock order (EventQueueMutex vs SDL2 watcher lock). Fix: patch in third_party/sdl12-compat (D-015 item 9, README-mugen.md item 2).
 - BMPs: SDL_SaveBMP never produced files (not needed any more; the screenshot of the owner is enough). Left in; remove in M3.
 - Next: owner retests touch. Then the purple specks, then M3 (lifecycle).
+
+### P3b M3 (start): lifecycle
+- Owner: touch no longer freezes (APK with the compat lock-order patch). Title menu and intro run.
+- Lifecycle in the engine: Events_Poll already turns SDL_ACTIVEEVENT (APPINPUTFOCUS) into g_onActivate (System_OnFocusLost/Gained, window_active, pause_on_defocus, mute/pause of sound). Added (Android only, System_OnFocusGained): Timer_ResetFrame() so the engine does not run every missed frame after SDL2 blocked the pump while the app was paused.
+- Removed the BMP code from the frame diagnostic (never wrote files); kept the one-line frame-30 log and the watchdog beat.
+- Codec check (host, ASan): RLE8 encode/decode round trip clean (3000 random bitmaps). The RLE5 and LZ5 *encoders* read past their input and misalign stores (encoder-only, not used by the game at load); decoders could not be exercised this way. The purple specks stay open.
+- To verify on device: Home -> back to the app (no catch-up burst, menu alive), screen off/on, rotation.

@@ -282,27 +282,25 @@ static void Gfx_PresentGlScreen(const SDL_Surface *surface)
 }
 
 #if defined(MUGEN_PLATFORM_ANDROID)
-#include <unistd.h>
 /*
- * Android bring-up diagnostics (P3b): at a few frames, logs the format of the composed screen buffer and how many
- * pixels are not black, and saves it as screen-<frame>.bmp in the data directory (the working directory), so a
- * black or garbled screen can be told apart from a presentation problem. Nothing of this exists on Windows.
+ * Android bring-up diagnostics (P3b): at frame 30, logs the format of the composed screen buffer and how many pixels
+ * are not black (a black or garbled screen can be told from a presentation problem), and beats the stall watchdog
+ * (mugen_watchdog.c) once per frame. Nothing of this exists on Windows.
  */
 void Mugen_WatchdogBeat(void);
 
 static void Gfx_AndroidDebugFrame(SDL_Surface *surface, SDL_Surface *screen)
 {
     static int frame = 0;
-    static const int at[] = { 30, 120, 400, 1200 };
+    static const int at[] = { 30 };
     int i;
 
     frame++;
     Mugen_WatchdogBeat();
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 1; i++) {
         if (frame == at[i]) {
             int x, y, nonblack = 0, colors = 0;
             unsigned int seen[16] = { 0 };
-            char name[32];
             if (SDL_MUSTLOCK(surface)) {
                 SDL_LockSurface(surface);
             }
@@ -339,15 +337,6 @@ static void Gfx_AndroidDebugFrame(SDL_Surface *surface, SDL_Surface *screen)
                 Log_Printf(" %08x", seen[x]);
             }
             Log_Printf("\n");
-            snprintf(name, sizeof(name), "screen-%d.bmp", frame);
-            {
-                char cwd[256] = "?";
-                int r = SDL_SaveBMP(surface, name);
-                if (getcwd(cwd, sizeof(cwd)) == NULL) {
-                    cwd[0] = '?';
-                }
-                Log_Printf("android: SDL_SaveBMP %s -> %d (%s) in %s\n", name, r, r == 0 ? "ok" : SDL_GetError(), cwd);
-            }
         }
     }
 }
