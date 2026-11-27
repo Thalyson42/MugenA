@@ -206,11 +206,91 @@ static void watch_after(const char *what, int a, int b, int c, int d, int e)
     }
 }
 
+/* For a sprite draw that changed a watched pixel: which source pixel it was (local coordinates, no flip assumed) and the
+ * sprite's data around it, once per (set, slot, watch). */
+static void watch_detail(const DrawParams *dp, SpriteSet *set, int sprite)
+{
+    static const void *seen_set[24];
+    static int seen_key[24];
+    static int nseen = 0;
+    const KeyedArray *a;
+    const Sprite *spr;
+    const unsigned char *px;
+    const unsigned short *pal = NULL;
+    int i;
+
+    if (set == NULL || set->sprites == NULL) {
+        return;
+    }
+    a = set->sprites;
+    if (sprite < 0 || sprite >= a->capacity || a->slots == NULL || !a->slots[sprite].used) {
+        return;
+    }
+    spr = (const Sprite *)(a->data + a->elem_size * sprite);
+    px = (const unsigned char *)Sprite_GetPixels(set, sprite);
+    if (px == NULL || spr->rows == NULL) {
+        return;
+    }
+    if (spr->pal_index >= 0) {
+        Palette *p = SpriteSet_GetPaletteConverted(set, spr->pal_index);
+        if (p != NULL) {
+            pal = p->rgb565;
+        }
+    }
+    for (i = 0; i < g_watchN; i++) {
+        unsigned short *wp = watch_px(i);
+        int lx, ly, k, r, dup = 0;
+
+        if (wp == NULL || *wp == g_watchBefore[i]) {
+            continue;
+        }
+        lx = g_watchX[i] - ((int)dp->x - spr->x);
+        ly = g_watchY[i] - ((int)dp->y - spr->y);
+        if (lx < 0 || ly < 0 || lx >= spr->w || ly >= spr->h) {
+            continue;
+        }
+        for (k = 0; k < nseen; k++) {
+            dup |= (seen_set[k] == (const void *)set && seen_key[k] == sprite * 8 + i);
+        }
+        if (dup || nseen >= 24) {
+            continue;
+        }
+        seen_set[nseen] = set;
+        seen_key[nseen++] = sprite * 8 + i;
+        Log_Printf("spritediag: DETAIL watch %d (%d,%d) <- set %p slot %d key %d,%d size %dx%d axis %d,%d bpp %d fmt %d "
+                   "pal %d draw %.1f,%.1f scale %.2f,%.2f flags %x local %d,%d result %04x\n",
+                   i, g_watchX[i], g_watchY[i], (void *)set, sprite, a->slots[sprite].key1, a->slots[sprite].key2,
+                   spr->w, spr->h, spr->x, spr->y, spr->bpp, spr->format, spr->pal_index, dp->x, dp->y, dp->scale_x,
+                   dp->scale_y, dp->flags, lx, ly, (unsigned)*wp);
+        for (r = ly - 2; r <= ly + 2; r++) {
+            const unsigned char *row;
+            int c;
+            if (r < 0 || r >= spr->h) {
+                continue;
+            }
+            row = px + spr->rows[r];
+            Log_Printf("spritediag:   row %d x%d..%d:", r, lx - 4 < 0 ? 0 : lx - 4, lx + 10);
+            for (c = lx - 4; c <= lx + 10; c++) {
+                if (c < 0 || c >= spr->w) {
+                    continue;
+                }
+                if (pal != NULL) {
+                    Log_Printf(" %d=%04x", row[c], (unsigned)pal[row[c]]);
+                } else {
+                    Log_Printf(" %d", row[c]);
+                }
+            }
+            Log_Printf("\n");
+        }
+    }
+}
+
 void __wrap_Sprite_DrawSoft8(const DrawParams *dp, SpriteSet *set, int sprite)
 {
     diag_note(dp, set, sprite);
     watch_before();
     __real_Sprite_DrawSoft8(dp, set, sprite);
+    watch_detail(dp, set, sprite);
     watch_after("DrawSoft8", sprite, (int)dp->x, (int)dp->y, dp->blend, (int)(dp->scale_x * 100));
 }
 
