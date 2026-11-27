@@ -1,28 +1,96 @@
 /*
- * Android diagnostic (P3b M3, D-017): the System renderer shows small dark dashes (about 8x2 px) at fixed places (the
- * corners of the title menu, the ground between the fighters) that the PC build does not show. Linked with
- * -Wl,--wrap=Sprite_DrawSoft8, this logs once per sprite every draw whose sprite is tiny (width <= 16, height <= 3):
- * which sprite (slot, group, number), its size and axis, where and how it is drawn, and its first pixels with their
- * RGB565 colours. It forwards every call unchanged. Output goes to mugen.log / logcat, prefix "spritediag".
- * Delete it (and the link option in cmake/MugenAndroid.cmake) once the dashes are explained.
+ * Android diagnostic (P3b M3, D-017): the System renderer shows small dark dashes (about 6-12 x 2 px) at places that stay
+ * fixed for a while (title menu background, fight ground, in front of the fighters) that the PC build does not show.
+ * Linked with -Wl,--wrap=<draw function>, this records every write to the screen buffer during a frame (sprites,
+ * rectangles, lines, pixels, SDL blits/fills, parallax layers) as an event with its bounding box. At the end of the frame
+ * Mugen_DiagScanFrame scans the finished RGB565 buffer for dashes (short one-colour runs that are clearly darker than
+ * both neighbours and whose rows above/below match the neighbours) and reports the last events whose box covers the
+ * dash, newest first, with the source pixel for sprites. Output goes to mugen.log / logcat, prefix "spritediag".
+ * Delete it (and the --wrap loop in cmake/MugenAndroid.cmake) once the dashes are explained.
  */
 #include <stdlib.h>
 #include "mugen.h"
 
-void __real_Sprite_DrawSoft8(const DrawParams *dp, SpriteSet *set, int sprite);
+#define EV_MAX 8000
 
-#define DIAG_MAX 80
+typedef struct {
+    const char *name;
+    int x1, y1, x2, y2;        /* inclusive bounding box (generous for sprites) */
+    unsigned int colour;       /* primitives: colour argument */
+    int blend;
+    SpriteSet *set;            /* sprites only */
+    int sprite;
+    float x, y, sx, sy;
+    unsigned int flags;
+} DiagEv;
 
-static void diag_note(const DrawParams *dp, SpriteSet *set, int sprite)
+static DiagEv g_ev[EV_MAX];
+static int g_evN = 0;
+static int g_scans = 0;
+static int g_lastScanFrame = 0;
+
+static int target_is_screen(void)
 {
-    static const void *seen_set[DIAG_MAX];
-    static int seen_idx[DIAG_MAX];
-    static int count = 0;
+    const KeyedArray *ta;
+    const Sprite *t;
+
+    if (g_renderTarget == NULL || g_renderTarget->sprites == NULL) {
+        return 0;
+    }
+    ta = g_renderTarget->sprites;
+    if (g_renderTargetSprite < 0 || g_renderTargetSprite >= ta->capacity) {
+        return 0;
+    }
+    t = (const Sprite *)(ta->data + ta->elem_size * g_renderTargetSprite);
+    return t->w >= 1000;
+}
+
+static DiagEv *ev_new(const char *name, int x1, int y1, int x2, int y2)
+{
+    DiagEv *e;
+    int t;
+
+    if (g_evN >= EV_MAX || !target_is_screen()) {
+        return NULL;
+    }
+    if (x1 > x2) {
+        t = x1; x1 = x2; x2 = t;
+    }
+    if (y1 > y2) {
+        t = y1; y1 = y2; y2 = t;
+    }
+    e = &g_ev[g_evN++];
+    e->name = name;
+    e->x1 = x1 - 1;
+    e->y1 = y1 - 1;
+    e->x2 = x2 + 1;
+    e->y2 = y2 + 1;
+    e->colour = 0;
+    e->blend = 0;
+    e->set = NULL;
+    e->sprite = 0;
+    return e;
+}
+
+static void ev_box(const char *name, int x1, int y1, int x2, int y2, unsigned int colour)
+{
+    DiagEv *e = ev_new(name, x1, y1, x2, y2);
+    if (e != NULL) {
+        e->colour = colour;
+    }
+}
+
+static void ev_all(const char *name)
+{
+    ev_box(name, 0, 0, 100000, 100000, 0);
+}
+
+static void ev_sprite(const char *name, const DrawParams *dp, SpriteSet *set, int sprite)
+{
     const KeyedArray *a;
     const Sprite *spr;
-    const unsigned char *px;
-    const unsigned short *pal = NULL;
-    int i, w;
+    float sx, sy;
+    DiagEv *e;
 
     if (set == NULL || set->sprites == NULL) {
         return;
@@ -32,149 +100,82 @@ static void diag_note(const DrawParams *dp, SpriteSet *set, int sprite)
         return;
     }
     spr = (const Sprite *)(a->data + a->elem_size * sprite);
-    if (spr->w <= 0 || spr->h <= 0 || spr->w > 16 || spr->h > 3) {
-        return;
+    sx = dp->scale_x != 0.0f ? dp->scale_x : 1.0f;
+    sy = dp->scale_y != 0.0f ? dp->scale_y : 1.0f;
+    if (sx < 0) {
+        sx = -sx;
     }
-    for (i = 0; i < count; i++) {
-        if (seen_set[i] == (const void *)set && seen_idx[i] == sprite) {
-            return;
-        }
+    if (sy < 0) {
+        sy = -sy;
     }
-    if (count >= DIAG_MAX) {
-        return;
-    }
-    seen_set[count] = set;
-    seen_idx[count] = sprite;
-    count++;
-
-    px = (const unsigned char *)Sprite_GetPixels(set, sprite);
-    if (spr->pal_index >= 0) {
-        Palette *p = SpriteSet_GetPaletteConverted(set, spr->pal_index);
-        if (p != NULL) {
-            pal = p->rgb565;
-        }
-    }
-    Log_Printf("\nspritediag: set %p slot %d key %d,%d size %dx%d axis %d,%d bpp %d fmt %d pal %d | draw at %.1f,%.1f "
-               "scale %.2f,%.2f blend %d masked %d flags %x\n",
-               (void *)set, sprite, a->slots[sprite].key1, a->slots[sprite].key2, spr->w, spr->h, spr->x, spr->y,
-               spr->bpp, spr->format, spr->pal_index, dp->x, dp->y, dp->scale_x, dp->scale_y, dp->blend, dp->masked,
-               dp->flags);
-    if (px != NULL && spr->rows != NULL) {
-        int r;
-        for (r = 0; r < spr->h; r++) {
-            const unsigned char *row = px + spr->rows[r];
-            w = spr->w;
-            Log_Printf("spritediag:   row %d:", r);
-            for (i = 0; i < w; i++) {
-                if (pal != NULL) {
-                    Log_Printf(" %d=%04x", row[i], (unsigned)pal[row[i]]);
-                } else {
-                    Log_Printf(" %d", row[i]);
-                }
-            }
-            Log_Printf("\n");
-        }
+    e = ev_new(name, (int)(dp->x - (spr->x + spr->w) * sx), (int)(dp->y - (spr->y + spr->h) * sy),
+               (int)(dp->x + (spr->x + spr->w) * sx), (int)(dp->y + (spr->y + spr->h) * sy));
+    if (e != NULL) {
+        e->set = set;
+        e->sprite = sprite;
+        e->x = dp->x;
+        e->y = dp->y;
+        e->sx = dp->scale_x;
+        e->sy = dp->scale_y;
+        e->flags = dp->flags;
+        e->blend = dp->blend;
     }
 }
 
-/* ---- pixel watch ----
- * Mugen_DiagScanFrame (called from Gfx_AndroidDebugFrame on the finished frame) looks for short horizontal runs of
- * one RGB565 colour whose left and right neighbours match each other (a "dash" in a uniform area) and remembers up to
- * WATCH_MAX of them. From then on every wrapped draw call compares those pixels of the render target before and
- * after, and logs the call that changes them ("spritediag: watch ..."), so the last line per frame names the
- * culprit. Only the first WATCH_LOG lines are logged. */
-#define WATCH_MAX 6
-#define WATCH_LOG 600
-static int g_watchN = 0;
-static int g_watchX[WATCH_MAX], g_watchY[WATCH_MAX];
-static unsigned short g_watchBefore[WATCH_MAX];
-static int g_watchLogged = 0;
-
-
-/* ---- per-frame record of the sprite draws on the screen buffer ----
- * Every Sprite_DrawSoft8 on a large (>= 1000 px wide) target is recorded; when the scan finds a dash at the end of the
- * frame, the last recorded draws whose rectangle covers it are reported with the source pixel behind it. */
-#define RING_MAX 6000
-typedef struct {
-    SpriteSet *set;
-    int sprite;
-    float x, y, sx, sy;
-    unsigned int flags;
-    int blend;
-} DiagDraw;
-static DiagDraw g_ring[RING_MAX];
-static int g_ringN = 0;
-
-static void ring_add(const DrawParams *dp, SpriteSet *set, int sprite)
+static int luma565(unsigned int c)
 {
-    DiagDraw *d;
-    if (g_ringN >= RING_MAX || g_renderTarget == NULL || g_renderTarget->sprites == NULL) {
-        return;
-    }
-    {
-        const KeyedArray *ta = g_renderTarget->sprites;
-        const Sprite *t;
-        if (g_renderTargetSprite < 0 || g_renderTargetSprite >= ta->capacity) {
-            return;
-        }
-        t = (const Sprite *)(ta->data + ta->elem_size * g_renderTargetSprite);
-        if (t->w < 1000) {
-            return;
-        }
-    }
-    d = &g_ring[g_ringN++];
-    d->set = set;
-    d->sprite = sprite;
-    d->x = dp->x;
-    d->y = dp->y;
-    d->sx = dp->scale_x;
-    d->sy = dp->scale_y;
-    d->flags = dp->flags;
-    d->blend = dp->blend;
+    return (int)(((c >> 11) & 31) * 24 + ((c >> 5) & 63) * 12 + (c & 31) * 9) / 10;
 }
 
-/* Reports the last draws (newest first, at most 4) that cover pixel (wx, wy). */
-static void ring_report(int wx, int wy, unsigned short colour)
+/* Source pixel of a sprite event behind screen pixel (wx, wy): unflipped placement, else mirrored; 0 when outside. */
+static int ev_source(const DiagEv *d, const Sprite *spr, int wx, int wy, int *lx, int *ly, int *mirrored)
 {
-    int i, shown = 0;
-    for (i = g_ringN - 1; i >= 0 && shown < 4; i--) {
-        const DiagDraw *d = &g_ring[i];
+    float sx = d->sx != 0.0f ? d->sx : 1.0f, sy = d->sy != 0.0f ? d->sy : 1.0f;
+    float x0 = d->x - spr->x * sx, y0 = d->y - spr->y * sy;
+    float fx = (wx - x0) / sx, fy = (wy - y0) / sy;
+
+    *mirrored = 0;
+    *lx = (int)fx;
+    *ly = (int)fy;
+    if (fx >= 0 && fy >= 0 && *lx < spr->w && *ly < spr->h) {
+        return 1;
+    }
+    x0 = d->x + (spr->x - spr->w + 1) * sx;
+    fx = (wx - x0) / sx;
+    *lx = (int)fx;
+    if (fx >= 0 && fy >= 0 && *lx < spr->w && *ly < spr->h) {
+        *lx = spr->w - 1 - *lx;
+        *mirrored = 1;
+        return 1;
+    }
+    return 0;
+}
+
+static void ev_report(int wx, int wy, unsigned short colour)
+{
+    int i, shown = 0, sprites_shown = 0;
+
+    for (i = g_evN - 1; i >= 0 && shown < 8; i--) {
+        const DiagEv *d = &g_ev[i];
         const KeyedArray *a;
         const Sprite *spr;
         const unsigned char *px;
         const unsigned short *pal = NULL;
-        float sx = d->sx != 0.0f ? d->sx : 1.0f, sy = d->sy != 0.0f ? d->sy : 1.0f;
-        float x0, y0, fx, fy;
-        int lx, ly, r, c, k;
+        int lx = 0, ly = 0, mir = 0, r, c;
 
-        if (d->set == NULL || d->set->sprites == NULL) {
+        if (wx < d->x1 || wx > d->x2 || wy < d->y1 || wy > d->y2) {
+            continue;
+        }
+        if (d->set == NULL) {
+            shown++;
+            Log_Printf("spritediag:   event %d of %d: %s box %d,%d..%d,%d colour %04x\n", i, g_evN, d->name, d->x1 + 1,
+                       d->y1 + 1, d->x2 - 1, d->y2 - 1, d->colour);
             continue;
         }
         a = d->set->sprites;
-        if (d->sprite < 0 || d->sprite >= a->capacity || a->slots == NULL || !a->slots[d->sprite].used) {
-            continue;
-        }
         spr = (const Sprite *)(a->data + a->elem_size * d->sprite);
-        if (spr->w <= 0 || spr->h <= 0) {
+        if (!ev_source(d, spr, wx, wy, &lx, &ly, &mir)) {
             continue;
-        }
-        /* unflipped mapping: the axis (spr->x, spr->y) sits at (d->x, d->y), scaled */
-        x0 = d->x - spr->x * sx;
-        y0 = d->y - spr->y * sy;
-        fx = (wx - x0) / sx;
-        fy = (wy - y0) / sy;
-        lx = (int)fx;
-        ly = (int)fy;
-        if (fx < 0 || fy < 0 || lx >= spr->w || ly >= spr->h) {
-            /* try the horizontally mirrored placement */
-            x0 = d->x + (spr->x - spr->w + 1) * sx;
-            fx = (wx - x0) / sx;
-            lx = (int)fx;
-            if (fx < 0 || fy < 0 || lx >= spr->w || ly >= spr->h) {
-                continue;
-            }
-            lx = spr->w - 1 - lx;
-            Log_Printf("spritediag: (mirrored placement assumed)\n");
         }
         shown++;
         px = (const unsigned char *)Sprite_GetPixels(d->set, d->sprite);
@@ -184,17 +185,16 @@ static void ring_report(int wx, int wy, unsigned short colour)
                 pal = p->rgb565;
             }
         }
-        Log_Printf("spritediag: DASH %d,%d (%04x) covered by draw #%d of %d: set %p slot %d key %d,%d size %dx%d axis "
-                   "%d,%d bpp %d fmt %d pal %d at %.1f,%.1f scale %.2f,%.2f flags %x blend %d -> source %d,%d\n",
-                   wx, wy, (unsigned)colour, i, g_ringN, (void *)d->set, d->sprite, a->slots[d->sprite].key1,
-                   a->slots[d->sprite].key2, spr->w, spr->h, spr->x, spr->y, spr->bpp, spr->format, spr->pal_index,
-                   d->x, d->y, d->sx, d->sy, d->flags, d->blend, lx, ly);
-        if (px == NULL || spr->rows == NULL) {
-            continue;
-        }
-        if (pal != NULL) {
-            int found = 0;
-            Log_Printf("spritediag:   palette indices with the dash colour:");
+        Log_Printf("spritediag:   event %d of %d: %s set %p slot %d key %d,%d size %dx%d axis %d,%d bpp %d fmt %d pal %d "
+                   "at %.1f,%.1f scale %.2f,%.2f flags %x blend %d -> source %d,%d%s idx %d\n",
+                   i, g_evN, d->name, (void *)d->set, d->sprite, a->slots[d->sprite].key1, a->slots[d->sprite].key2,
+                   spr->w, spr->h, spr->x, spr->y, spr->bpp, spr->format, spr->pal_index, d->x, d->y, d->sx, d->sy,
+                   d->flags, d->blend, lx, ly, mir ? " (mirrored)" : "",
+                   (px != NULL && spr->rows != NULL) ? px[spr->rows[ly] + lx] : -1);
+        if (pal != NULL && px != NULL && spr->rows != NULL && sprites_shown < 2) {
+            int k, found = 0;
+            sprites_shown++;
+            Log_Printf("spritediag:     palette entries equal to the dash colour:");
             for (k = 0; k < 256; k++) {
                 if (pal[k] == colour) {
                     Log_Printf(" %d", k);
@@ -202,41 +202,26 @@ static void ring_report(int wx, int wy, unsigned short colour)
                 }
             }
             Log_Printf("%s\n", found ? "" : " none");
-        }
-        for (r = ly - 3; r <= ly + 3; r++) {
-            const unsigned char *row;
-            if (r < 0 || r >= spr->h) {
-                continue;
-            }
-            row = px + spr->rows[r];
-            Log_Printf("spritediag:   src row %d, cols %d..%d:", r, lx - 6 < 0 ? 0 : lx - 6, lx + 6);
-            for (c = lx - 6; c <= lx + 6; c++) {
-                if (c < 0 || c >= spr->w) {
+            for (r = ly - 2; r <= ly + 2; r++) {
+                const unsigned char *row;
+                if (r < 0 || r >= spr->h) {
                     continue;
                 }
-                if (pal != NULL) {
-                    Log_Printf(" %d=%04x", row[c], (unsigned)pal[row[c]]);
-                } else {
-                    Log_Printf(" %d", row[c]);
+                row = px + spr->rows[r];
+                Log_Printf("spritediag:     src row %d cols %d..%d (index=rgb565):", r, lx - 4 < 0 ? 0 : lx - 4, lx + 4);
+                for (c = lx - 4; c <= lx + 4; c++) {
+                    if (c >= 0 && c < spr->w) {
+                        Log_Printf(" %d=%04x", row[c], (unsigned)pal[row[c]]);
+                    }
                 }
+                Log_Printf("\n");
             }
-            Log_Printf("\n");
         }
     }
     if (shown == 0) {
-        Log_Printf("spritediag: DASH %d,%d (%04x): no recorded sprite draw covers it (%d draws recorded)\n", wx, wy,
-                   (unsigned)colour, g_ringN);
+        Log_Printf("spritediag:   no recorded write covers it (%d events)\n", g_evN);
     }
 }
-
-
-static int luma565(unsigned int c)
-{
-    return (int)(((c >> 11) & 31) * 24 + ((c >> 5) & 63) * 12 + (c & 31) * 9) / 10;
-}
-
-static int g_scans = 0;
-static int g_lastScanFrame = 0;
 
 /* 1 on the frames where the finished buffer should be scanned (gfx.c locks the surface only then). */
 int Mugen_DiagWantScan(int frame)
@@ -244,8 +229,7 @@ int Mugen_DiagWantScan(int frame)
     return g_scans < 4 && frame >= 20 && frame % 20 == 0 && frame - g_lastScanFrame >= 60;
 }
 
-/* Called every frame from Gfx_AndroidDebugFrame at the end of the frame; pixels is non-NULL only when
- * Mugen_DiagWantScan said so. Resets the draw record for the next frame. */
+/* Called every frame at the end of the frame; pixels is non-NULL only when Mugen_DiagWantScan said so. */
 void Mugen_DiagScanFrame(const unsigned char *pixels, int w, int h, int pitch, int frame)
 {
     int x, y, found = 0;
@@ -272,9 +256,11 @@ void Mugen_DiagScanFrame(const unsigned char *pixels, int w, int h, int pitch, i
                     abs(luma565(*(const unsigned short *)(pixels + (size_t)(y + 3) * pitch + xm * 2)) - n) > 8) {
                     continue;
                 }
-                Log_Printf("spritediag: frame %d dash at x=%d y=%d len=%d colour %04x around %04x\n", frame, x, y, len,
-                           (unsigned)c, (unsigned)row[x - 1]);
-                ring_report(xm, y, c);
+                Log_Printf("spritediag: frame %d dash at x=%d y=%d len=%d colour %04x around %04x (rows below: %04x %04x)\n",
+                           frame, x, y, len, (unsigned)c, (unsigned)row[x - 1],
+                           (unsigned)*(const unsigned short *)(pixels + (size_t)(y + 1) * pitch + xm * 2),
+                           (unsigned)*(const unsigned short *)(pixels + (size_t)(y + 2) * pitch + xm * 2));
+                ev_report(xm, y, c);
                 found++;
                 x += len;
             }
@@ -284,170 +270,39 @@ void Mugen_DiagScanFrame(const unsigned char *pixels, int w, int h, int pitch, i
             g_lastScanFrame = frame;
         }
     }
-    g_ringN = 0;
+    g_evN = 0;
 }
 
-static unsigned short *watch_px(int i)
-{
-    const Sprite *spr;
-    const KeyedArray *a;
-    unsigned char *base;
+/* ---- wrappers: record, then forward unchanged ---- */
 
-    if (g_renderTarget == NULL || g_renderTarget->sprites == NULL) {
-        return NULL;
-    }
-    a = g_renderTarget->sprites;
-    if (g_renderTargetSprite < 0 || g_renderTargetSprite >= a->capacity) {
-        return NULL;
-    }
-    spr = (const Sprite *)(a->data + a->elem_size * g_renderTargetSprite);
-    base = (unsigned char *)Sprite_GetPixels(g_renderTarget, g_renderTargetSprite);
-    if (base == NULL || spr->rows == NULL || spr->bpp != 16 || g_watchY[i] >= spr->h || g_watchX[i] >= spr->w) {
-        return NULL;
-    }
-    return (unsigned short *)(base + spr->rows[g_watchY[i]] + g_watchX[i] * 2);
-}
-
-static void watch_before(void)
-{
-    int i;
-    if (g_watchLogged >= WATCH_LOG) {
-        return;
-    }
-    for (i = 0; i < g_watchN; i++) {
-        unsigned short *p = watch_px(i);
-        g_watchBefore[i] = p != NULL ? *p : 0;
-    }
-}
-
-static void watch_after(const char *what, int a, int b, int c, int d, int e)
-{
-    int i;
-    if (g_watchLogged >= WATCH_LOG) {
-        return;
-    }
-    for (i = 0; i < g_watchN; i++) {
-        unsigned short *p = watch_px(i);
-        if (p != NULL && *p != g_watchBefore[i]) {
-            g_watchLogged++;
-            Log_Printf("spritediag: watch %d (%d,%d) %04x -> %04x by %s args %d %d %d %d %d\n", i, g_watchX[i],
-                       g_watchY[i], (unsigned)g_watchBefore[i], (unsigned)*p, what, a, b, c, d, e);
-        }
-    }
-}
-
-/* For a sprite draw that changed a watched pixel: which source pixel it was (local coordinates, no flip assumed) and the
- * sprite's data around it, once per (set, slot, watch). */
-static void watch_detail(const DrawParams *dp, SpriteSet *set, int sprite)
-{
-    static const void *seen_set[24];
-    static int seen_key[24];
-    static int nseen = 0;
-    const KeyedArray *a;
-    const Sprite *spr;
-    const unsigned char *px;
-    const unsigned short *pal = NULL;
-    int i;
-
-    if (set == NULL || set->sprites == NULL) {
-        return;
-    }
-    a = set->sprites;
-    if (sprite < 0 || sprite >= a->capacity || a->slots == NULL || !a->slots[sprite].used) {
-        return;
-    }
-    spr = (const Sprite *)(a->data + a->elem_size * sprite);
-    px = (const unsigned char *)Sprite_GetPixels(set, sprite);
-    if (px == NULL || spr->rows == NULL) {
-        return;
-    }
-    if (spr->pal_index >= 0) {
-        Palette *p = SpriteSet_GetPaletteConverted(set, spr->pal_index);
-        if (p != NULL) {
-            pal = p->rgb565;
-        }
-    }
-    for (i = 0; i < g_watchN; i++) {
-        unsigned short *wp = watch_px(i);
-        int lx, ly, k, r, dup = 0;
-
-        if (wp == NULL || *wp == g_watchBefore[i]) {
-            continue;
-        }
-        lx = g_watchX[i] - ((int)dp->x - spr->x);
-        ly = g_watchY[i] - ((int)dp->y - spr->y);
-        if (lx < 0 || ly < 0 || lx >= spr->w || ly >= spr->h) {
-            continue;
-        }
-        for (k = 0; k < nseen; k++) {
-            dup |= (seen_set[k] == (const void *)set && seen_key[k] == sprite * 8 + i);
-        }
-        if (dup || nseen >= 24) {
-            continue;
-        }
-        seen_set[nseen] = set;
-        seen_key[nseen++] = sprite * 8 + i;
-        Log_Printf("spritediag: DETAIL watch %d (%d,%d) <- set %p slot %d key %d,%d size %dx%d axis %d,%d bpp %d fmt %d "
-                   "pal %d draw %.1f,%.1f scale %.2f,%.2f flags %x local %d,%d result %04x\n",
-                   i, g_watchX[i], g_watchY[i], (void *)set, sprite, a->slots[sprite].key1, a->slots[sprite].key2,
-                   spr->w, spr->h, spr->x, spr->y, spr->bpp, spr->format, spr->pal_index, dp->x, dp->y, dp->scale_x,
-                   dp->scale_y, dp->flags, lx, ly, (unsigned)*wp);
-        for (r = ly - 2; r <= ly + 2; r++) {
-            const unsigned char *row;
-            int c;
-            if (r < 0 || r >= spr->h) {
-                continue;
-            }
-            row = px + spr->rows[r];
-            Log_Printf("spritediag:   row %d x%d..%d:", r, lx - 4 < 0 ? 0 : lx - 4, lx + 10);
-            for (c = lx - 4; c <= lx + 10; c++) {
-                if (c < 0 || c >= spr->w) {
-                    continue;
-                }
-                if (pal != NULL) {
-                    Log_Printf(" %d=%04x", row[c], (unsigned)pal[row[c]]);
-                } else {
-                    Log_Printf(" %d", row[c]);
-                }
-            }
-            Log_Printf("\n");
-        }
-    }
-}
-
+void __real_Sprite_DrawSoft8(const DrawParams *dp, SpriteSet *set, int sprite);
 void __wrap_Sprite_DrawSoft8(const DrawParams *dp, SpriteSet *set, int sprite)
 {
-    diag_note(dp, set, sprite);
-    ring_add(dp, set, sprite);
-    watch_before();
+    ev_sprite("DrawSoft8", dp, set, sprite);
     __real_Sprite_DrawSoft8(dp, set, sprite);
-    watch_detail(dp, set, sprite);
-    watch_after("DrawSoft8", sprite, (int)dp->x, (int)dp->y, dp->blend, (int)(dp->scale_x * 100));
 }
 
 void __real_Sprite_DrawSoft(SpriteSet *set, int sprite, const DrawParams *dp);
 void __wrap_Sprite_DrawSoft(SpriteSet *set, int sprite, const DrawParams *dp)
 {
-    watch_before();
+    /* surface / non-paletted sprites do not reach Sprite_DrawSoft8: record them whole */
+    ev_all("DrawSoft(any sprite)");
     __real_Sprite_DrawSoft(set, sprite, dp);
-    watch_after("DrawSoft", sprite, (int)dp->x, (int)dp->y, dp->blend, (int)(dp->scale_x * 100));
 }
 
 void __real_Gfx_SoftClear(unsigned int color);
 void __wrap_Gfx_SoftClear(unsigned int color)
 {
-    watch_before();
+    ev_box("SoftClear", 0, 0, 100000, 100000, color);
     __real_Gfx_SoftClear(color);
-    watch_after("SoftClear", (int)color, 0, 0, 0, 0);
 }
 
 #define WRAP_RECT(NAME)                                                                                       \
     void __real_##NAME(int x1, int y1, int x2, int y2, unsigned int color);                                  \
     void __wrap_##NAME(int x1, int y1, int x2, int y2, unsigned int color)                                   \
     {                                                                                                         \
-        watch_before();                                                                                       \
+        ev_box(#NAME, x1, y1, x2, y2, color);                                                                 \
         __real_##NAME(x1, y1, x2, y2, color);                                                                 \
-        watch_after(#NAME, x1, y1, x2, y2, (int)color);                                                       \
     }
 WRAP_RECT(Gfx_SoftDrawRect)
 WRAP_RECT(Gfx_SoftDrawRectAdd)
@@ -456,38 +311,115 @@ WRAP_RECT(Gfx_SoftFillRect)
 WRAP_RECT(Gfx_SoftFillRectAdd)
 WRAP_RECT(Gfx_SoftFillRectSub)
 
+#define WRAP_RECT_AB(NAME)                                                                                    \
+    void __real_##NAME(int x1, int y1, int x2, int y2, unsigned int color, int a, int b);                    \
+    void __wrap_##NAME(int x1, int y1, int x2, int y2, unsigned int color, int a, int b)                     \
+    {                                                                                                         \
+        ev_box(#NAME, x1, y1, x2, y2, color);                                                                 \
+        __real_##NAME(x1, y1, x2, y2, color, a, b);                                                           \
+    }
+WRAP_RECT_AB(Gfx_SoftDrawRectBlend)
+WRAP_RECT_AB(Gfx_SoftBlendRect)
+
+void __real_Gfx_SoftFillRectHalfAdd(unsigned int color, int x1, int x2, int y1, int y2);
+void __wrap_Gfx_SoftFillRectHalfAdd(unsigned int color, int x1, int x2, int y1, int y2)
+{
+    ev_box("SoftFillRectHalfAdd", x1, y1, x2, y2, color);
+    __real_Gfx_SoftFillRectHalfAdd(color, x1, x2, y1, y2);
+}
+
+#define WRAP_HLINE_CXY(NAME)                                                                                  \
+    void __real_##NAME(unsigned int color, int x1, int x2, int y);                                           \
+    void __wrap_##NAME(unsigned int color, int x1, int x2, int y)                                            \
+    {                                                                                                         \
+        ev_box(#NAME, x1, y, x2, y, color);                                                                   \
+        __real_##NAME(color, x1, x2, y);                                                                      \
+    }
+WRAP_HLINE_CXY(Gfx_SoftHLineAdd)
+WRAP_HLINE_CXY(Gfx_SoftHLineHalfAdd)
+WRAP_HLINE_CXY(Gfx_SoftHLineSub)
+
+#define WRAP_VLINE_CXY(NAME)                                                                                  \
+    void __real_##NAME(unsigned int color, int y1, int y2, int x);                                           \
+    void __wrap_##NAME(unsigned int color, int y1, int y2, int x)                                            \
+    {                                                                                                         \
+        ev_box(#NAME, x, y1, x, y2, color);                                                                   \
+        __real_##NAME(color, y1, y2, x);                                                                      \
+    }
+WRAP_VLINE_CXY(Gfx_SoftVLineAdd)
+WRAP_VLINE_CXY(Gfx_SoftVLineHalfAdd)
+WRAP_VLINE_CXY(Gfx_SoftVLineSub)
+
 void __real_Gfx_SoftHLine(int x1, int x2, int y, unsigned int color);
 void __wrap_Gfx_SoftHLine(int x1, int x2, int y, unsigned int color)
 {
-    watch_before();
+    ev_box("SoftHLine", x1, y, x2, y, color);
     __real_Gfx_SoftHLine(x1, x2, y, color);
-    watch_after("SoftHLine", x1, x2, y, (int)color, 0);
 }
 
 void __real_Gfx_SoftVLine(int y1, int y2, int x, unsigned int color);
 void __wrap_Gfx_SoftVLine(int y1, int y2, int x, unsigned int color)
 {
-    watch_before();
+    ev_box("SoftVLine", x, y1, x, y2, color);
     __real_Gfx_SoftVLine(y1, y2, x, color);
-    watch_after("SoftVLine", y1, y2, x, (int)color, 0);
 }
 
-void __real_Gfx_SoftPutPixel(int x, int y, unsigned int color);
-void __wrap_Gfx_SoftPutPixel(int x, int y, unsigned int color)
-{
-    watch_before();
-    __real_Gfx_SoftPutPixel(x, y, color);
-    watch_after("SoftPutPixel", x, y, (int)color, 0, 0);
-}
-
-#define WRAP_BLIT4(NAME, ARGS_DECL, ARGS_CALL)                                                                \
-    void __real_##NAME ARGS_DECL;                                                                             \
-    void __wrap_##NAME ARGS_DECL                                                                              \
+#define WRAP_PIXEL(NAME)                                                                                      \
+    void __real_##NAME(int x, int y, unsigned int color);                                                    \
+    void __wrap_##NAME(int x, int y, unsigned int color)                                                     \
     {                                                                                                         \
-        watch_before();                                                                                       \
-        __real_##NAME ARGS_CALL;                                                                              \
-        watch_after(#NAME, 0, 0, 0, 0, 0);                                                                    \
+        ev_box(#NAME, x, y, x, y, color);                                                                     \
+        __real_##NAME(x, y, color);                                                                           \
     }
-WRAP_BLIT4(BgElem_DrawParallaxSoft, (Bg *bg, BgElem *e, float sx, float sy), (bg, e, sx, sy))
-WRAP_BLIT4(BgElem_DrawParallaxSoftMasked, (Bg *bg, BgElem *e, float sx, float sy), (bg, e, sx, sy))
+WRAP_PIXEL(Gfx_SoftPutPixel)
+WRAP_PIXEL(Gfx_SoftAddPixel)
 
+void __real_Gfx_SoftInvertPixel(int x, int y);
+void __wrap_Gfx_SoftInvertPixel(int x, int y)
+{
+    ev_box("SoftInvertPixel", x, y, x, y, 0);
+    __real_Gfx_SoftInvertPixel(x, y);
+}
+
+#define WRAP_LINE(NAME)                                                                                       \
+    void __real_##NAME(float x1, float y1, float x2, float y2, unsigned int color);                          \
+    void __wrap_##NAME(float x1, float y1, float x2, float y2, unsigned int color)                           \
+    {                                                                                                         \
+        ev_box(#NAME, (int)x1, (int)y1, (int)x2, (int)y2, color);                                             \
+        __real_##NAME(x1, y1, x2, y2, color);                                                                 \
+    }
+WRAP_LINE(Gfx_SoftDrawLine)
+WRAP_LINE(Gfx_SoftDrawLineAdd)
+
+#define WRAP_BG(NAME)                                                                                         \
+    void __real_##NAME(Bg *bg, BgElem *e, float sx, float sy);                                               \
+    void __wrap_##NAME(Bg *bg, BgElem *e, float sx, float sy)                                                \
+    {                                                                                                         \
+        ev_all(#NAME);                                                                                        \
+        __real_##NAME(bg, e, sx, sy);                                                                         \
+    }
+WRAP_BG(BgElem_DrawParallaxSoft)
+WRAP_BG(BgElem_DrawParallaxSoftMasked)
+
+int __real_SDL_UpperBlit(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect);
+int __wrap_SDL_UpperBlit(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, SDL_Rect *dstrect)
+{
+    if (src != NULL && dst != NULL && dst->w >= 1000 && dst->format != NULL && dst->format->BitsPerPixel == 16) {
+        int dx = dstrect != NULL ? dstrect->x : 0, dy = dstrect != NULL ? dstrect->y : 0;
+        ev_box("SDL_UpperBlit", dx, dy, dx + src->w, dy + src->h, 0);
+    }
+    return __real_SDL_UpperBlit(src, srcrect, dst, dstrect);
+}
+
+int __real_SDL_FillRect(SDL_Surface *dst, SDL_Rect *dstrect, Uint32 color);
+int __wrap_SDL_FillRect(SDL_Surface *dst, SDL_Rect *dstrect, Uint32 color)
+{
+    if (dst != NULL && dst->w >= 1000 && dst->format != NULL && dst->format->BitsPerPixel == 16) {
+        if (dstrect != NULL) {
+            ev_box("SDL_FillRect", dstrect->x, dstrect->y, dstrect->x + dstrect->w, dstrect->y + dstrect->h, color);
+        } else {
+            ev_box("SDL_FillRect(all)", 0, 0, 100000, 100000, color);
+        }
+    }
+    return __real_SDL_FillRect(dst, dstrect, color);
+}
