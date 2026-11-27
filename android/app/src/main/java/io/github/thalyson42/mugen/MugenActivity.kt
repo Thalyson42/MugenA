@@ -1,5 +1,8 @@
 package io.github.thalyson42.mugen
 
+import android.os.Bundle
+import android.system.Os
+import android.util.Log
 import org.libsdl.app.SDLActivity
 
 /**
@@ -10,6 +13,17 @@ import org.libsdl.app.SDLActivity
  */
 class MugenActivity : SDLActivity() {
     override fun getLibraries(): Array<String> = arrayOf("SDL2", "SDL", "mugen")
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        // D-017: SDL2 publishes the accelerometer as a joystick by default and the engine opens every joystick (Pads_Init),
+        // so tilting the phone counted as pad input. SDL reads this hint from the environment; it must be set before SDL starts.
+        try {
+            Os.setenv("SDL_ACCELEROMETER_AS_JOYSTICK", "0", true)
+        } catch (e: Exception) {
+            Log.w("mugen", "setenv SDL_ACCELEROMETER_AS_JOYSTICK failed: $e")
+        }
+        super.onCreate(savedInstanceState)
+    }
 
     override fun onResume() {
         super.onResume()
