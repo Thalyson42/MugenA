@@ -156,7 +156,7 @@ static void ev_report(int wx, int wy, unsigned short colour)
 {
     int i, shown = 0, sprites_shown = 0;
 
-    for (i = g_evN - 1; i >= 0 && shown < 8; i--) {
+    for (i = g_evN - 1; i >= 0 && shown < 10; i--) {
         const DiagEv *d = &g_ev[i];
         const KeyedArray *a;
         const Sprite *spr;
@@ -287,7 +287,7 @@ void __real_Sprite_DrawSoft(SpriteSet *set, int sprite, const DrawParams *dp);
 void __wrap_Sprite_DrawSoft(SpriteSet *set, int sprite, const DrawParams *dp)
 {
     /* surface / non-paletted sprites do not reach Sprite_DrawSoft8: record them whole */
-    ev_all("DrawSoft(any sprite)");
+    /* not recorded: the 8-bit sprites are recorded by Sprite_DrawSoft8 with their real box (an "all" box here hid them) */
     __real_Sprite_DrawSoft(set, sprite, dp);
 }
 
@@ -407,7 +407,9 @@ int __wrap_SDL_UpperBlit(SDL_Surface *src, SDL_Rect *srcrect, SDL_Surface *dst, 
 {
     if (src != NULL && dst != NULL && dst->w >= 1000 && dst->format != NULL && dst->format->BitsPerPixel == 16) {
         int dx = dstrect != NULL ? dstrect->x : 0, dy = dstrect != NULL ? dstrect->y : 0;
-        ev_box("SDL_UpperBlit", dx, dy, dx + src->w, dy + src->h, 0);
+        if (!(dx == 0 && dy == 0 && src->w >= dst->w && src->h >= dst->h)) {   /* skip the final present blit */
+            ev_box("SDL_UpperBlit", dx, dy, dx + src->w, dy + src->h, 0);
+        }
     }
     return __real_SDL_UpperBlit(src, srcrect, dst, dstrect);
 }
