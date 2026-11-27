@@ -169,6 +169,7 @@ add_library(mugen SHARED
   android/app/src/main/cpp/mugen_sdl_probe.c
   android/app/src/main/cpp/mugen_d003_stubs.c
   android/app/src/main/cpp/mugen_gl_stubs.c
+  android/app/src/main/cpp/mugen_spritediag.c
   $<TARGET_OBJECTS:mugen_core>
   $<TARGET_OBJECTS:mugen_sdl12_probe>)
 target_include_directories(mugen PRIVATE ${MUGEN_ANDROID_ENGINE_INCLUDES})
@@ -183,3 +184,5 @@ target_link_libraries(mugen PRIVATE mugen_platform lua51 png12 minizip cgltf stb
   $<LINK_ONLY:SDL12> log android ${MUGEN_ZLIB})
 add_dependencies(mugen SDL2 SDL12)
 target_link_options(mugen PRIVATE ${MUGEN_ANDROID_LINK_FLAGS})
+# Diagnostic (P3b M3, D-017): mugen_spritediag.c logs tiny sprites drawn by the System renderer; delete with the dashes' cause found.
+target_link_options(mugen PRIVATE -Wl,--wrap=Sprite_DrawSoft8)
