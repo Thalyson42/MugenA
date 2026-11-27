@@ -284,3 +284,9 @@ Pendente: confirmar D-001..D-006; criar branch android/main e commitar estes doc
 - Owner log (mugen-ui watchdog): UI thread WAITING in SDLActivity.messageboxShowMessageBox called from SDLAudioManager.addAudioDevice (Android audio-device callback). Logcat: "SDL/ASSERT ... add_capture_device ... HasCaptureSupport" and an "Assertion Failed" window. SDL2 was built with assertions on; the dialog needs the UI thread, which is the one that raised it.
 - Fix: SDL_ASSERTIONS=disabled (SDL2) and SDL_ASSERT_LEVEL=0 (sdl12-compat) in cmake/MugenAndroid.cmake.
 - The log had no "spritediag" line: the capture was taken at the title menu, before any tiny sprite was drawn under the diag's thresholds, or the drawing of the dashes does not go through Sprite_DrawSoft8 (to check next). Only "android frame 30" is in it.
+
+### P3b M3: pixel watch to find what draws the dashes
+- spritediag found nothing from tiny sprites, so the dashes are not a small sprite through Sprite_DrawSoft8 (or come from another primitive). New diagnostic: on frames 45/150/400 Gfx_AndroidDebugFrame calls Mugen_DiagScanFrame, which scans the finished RGB565 buffer for short (4-12 px) one-colour runs whose left/right neighbours are equal (a "dash") and logs "spritediag: frame N dash at x=.. y=.. len=.. colour .. around ..". The first 6 become watch points.
+- From then on wrappers (--wrap) around Sprite_DrawSoft8/Sprite_DrawSoft, Gfx_SoftClear, the Soft rect/line/pixel primitives and BgElem_DrawParallaxSoft[Masked] compare those pixels before/after and log "spritediag: watch i (x,y) old -> new by FUNC args". The last line per frame names the call that leaves the dash. Max 160 watch lines.
+- Noted: Gfx_SoftClear keeps the original quirk (indices w*h..1: pixel 0 never cleared, one element written past the end); harmless here but worth a guard if it shows up in ASan later.
+- Delete mugen_spritediag.c and the --wrap loop in cmake/MugenAndroid.cmake when the dashes are explained.
