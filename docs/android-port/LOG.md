@@ -317,3 +317,9 @@ Pendente: confirmar D-001..D-006; criar branch android/main e commitar estes doc
 ### Diagnósticos temporários marcados para remoção
 - Novo `docs/android-port/05-diagnosticos-a-remover.md`: tabela com os 7 itens temporários (spritediag + `--wrap`, log do quadro 30, watchdog nativo `mugen-wd`, watchdog de UI `mugen-ui`, simbolização no CI, rótulo "(diag)", relatório do launcher/`mugen-diag`), onde estão, tag de log, motivo e quando remover; e a lista do que NÃO remover (SDL_ASSERT_LEVEL=0, patch de locks, Lua sem FORTIFY, override do renderer, etc.).
 - Cada item recebeu o marcador `REMOVER-NO-RELEASE` no código (comentários apenas): `grep -rn "REMOVER-NO-RELEASE" .`. Ligado no README (índice) e no P12 em `02-fases.md` como passo obrigatório antes do release.
+
+### P3b M3: CONCLUÍDO (ciclo de vida verificado no A065M)
+- Owner: Home, esperar 5 s e voltar → o jogo continua de onde parou. ANR/diálogo de asserção não voltou (D-018).
+- Observação aberta (não bloqueia): depois de MUITO tempo em segundo plano, ao voltar aparece tela preta por alguns segundos e o jogo retoma de onde estava. Provável causa: o Android destrói a superfície/contexto GL enquanto o app está parado e o SDL2/sdl12-compat recria a janela e a textura de apresentação (e o engine só volta a apresentar depois). Investigar no P5/P6 (apresentação via textura GLES própria); medir quanto tempo leva e se há trabalho do engine (carga/Timer_ResetFrame) no intervalo. Teste de tela apagada/acesa e rotação: o dono relatou "passaram" ("os testes passaram").
+- Pendências do P3b: traços escuros do menu (estacionado, ver bloco "dashes parked"); remover diagnósticos (P12, `05-diagnosticos-a-remover.md`); PR da `android/p3b-sdl` para `android/main`.
+- Combinado com o dono: o CI não é consultado a cada push; só se o resultado for necessário (aí pede-se o log).
