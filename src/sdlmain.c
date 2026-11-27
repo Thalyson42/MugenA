@@ -286,6 +286,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw)
  * the one SDL 2 function needed, the app's data folder, is looked up by dlsym in the already loaded libSDL2.so.
  */
 extern int Mugen_EngineMain(int argc, char *argv[]);   /* main.c */
+extern void Mugen_WatchdogBeat(void);                    /* mugen_watchdog.c; REMOVER-NO-RELEASE item 3 */
 extern int Mugen_SdlProbeMain(void);                    /* android/app/src/main/cpp/mugen_sdl_probe.c: the M1b mode test */
 
 static void DataDirFromSdl2(void)
@@ -321,6 +322,7 @@ int SDL_main(int argc, char *argv[])
         Mugen_ShowError("SDL_main() error", SDL_GetError());
         return 0;
     }
+    Mugen_WatchdogBeat();   /* REMOVER-NO-RELEASE item 3: arms the stall watchdog (hangs before the first frame are dumped too) */
     status = Mugen_EngineMain(argc, argv);
     SDL_Quit();
     return status;

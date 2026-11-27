@@ -328,3 +328,8 @@ Pendente: confirmar D-001..D-006; criar branch android/main e commitar estes doc
 - Novo `mugen_perf.c` (item 8 de `05-diagnosticos-a-remover.md`): `--wrap` de `SDL_UpdateRect` e `SDL_Flip` (onde o sdl12-compat converte 16→32 bpp na CPU e envia a textura) e, a cada 120 quadros, uma linha `perf:` com fps, período médio do quadro, CPU média da thread da engine por quadro e tempo médio em UpdateRect/Flip. Serve de linha de base para comparar com o P5 (RGB565 direto para textura GLES).
 - Como ler: se o período ficar ~16,7 ms (60 fps) com CPU baixa, o limitador de quadros é quem manda e o caminho de apresentação não é gargalo; se o período passar de 16,7 ms e UpdateRect+Flip for grande parte dele, a conversão é o gargalo.
 - Aguarda o log do dono (menu ~10 s + luta ~30 s).
+
+### Medição de fps: o log recebido não tem quadros
+- Log do dono (perf build): a engine entrou em "Mode select init" (06:36:02.685) e depois não escreveu mais nada: nem "android frame 30" (que nos logs anteriores vinha ~1 s depois) nem linha `perf:`. Sem crash/tombstone e sem `mugen-wd`, porque o watchdog só era armado no primeiro quadro apresentado. Ou seja: nenhum quadro foi apresentado nessa execução (travada antes do 1º present, possivelmente intermitente) — não dá para medir fps com ela. Não se sabe ainda se o `--wrap` de SDL_UpdateRect/SDL_Flip tem relação (a build anterior, sem ele, passou).
+- Mudança: `sdlmain.c` (ramo Android) chama `Mugen_WatchdogBeat()` antes de `Mugen_EngineMain`, armando o watchdog logo no início; se travar antes do 1º quadro, o `mugen-wd` despeja as threads em 3 s.
+- Próximo: o dono repete a medição e conta o que viu na tela; se travar de novo, o log traz o despejo.
