@@ -14,6 +14,7 @@
 | 4 | Watchdog da thread de UI | `android/app/src/main/java/io/github/thalyson42/mugen/UiWatchdog.kt` e a chamada `UiWatchdog.start()` em `MugenActivity.kt` | `mugen-ui` | mostrar quem bloqueia a thread principal (achou o diálogo de asserção do SDL2 = ANR) | junto com o item 3 |
 | 5 | Simbolização de endereços de crash no CI | passo "Symbolize device crash addresses" e o passo `nm` anterior em `.github/workflows/android.yml`; arquivo `android/tools/symbolize-addrs.txt` | (saída do CI) | transformar `pc` de tombstone em função/linha | quando não houver mais crash nativo para investigar |
 | 6 | Nome "MUGEN (diag)" do app | `android:label` em `android/app/src/main/AndroidManifest.xml` | — | distinguir o APK de diagnóstico | P11 (app shell) / release: nome final |
+| 8 | Medidor de desempenho do apresentar quadro | `android/app/src/main/cpp/mugen_perf.c` (lista de fontes e `--wrap=SDL_UpdateRect`/`SDL_Flip` no CMake); chamada `Mugen_PerfFrame` em `Gfx_AndroidDebugFrame` (`src/gfx.c`) | `perf` | medir fps, CPU da thread da engine e tempo de `SDL_UpdateRect`/`SDL_Flip` (conversão 16→32 bpp do compat) antes e depois do P5 | depois que o P5 comparar antes/depois (ou P12) |
 | 7 | Relatório de diagnóstico do launcher e `mugen-diag` | `MainActivity.kt` (tela com relatório, cópia para a área de transferência, `GL_EXTENSIONS`) | `mugen-diag` | verificar GL/Vulkan e a sonda SDL no aparelho | P11: decidir o que vira tela "Sobre/Diagnóstico" do usuário e o que sai |
 
 ## NÃO remover (parecem diagnóstico, mas são correções)
@@ -28,5 +29,5 @@
    apagar `Gfx_AndroidDebugFrame` e a chamada em `Gfx_Present` (`src/gfx.c`). Compilar Android **e** rodar `Build` (Windows).
 2. Item 4: apagar `UiWatchdog.kt` e a linha em `MugenActivity.kt`.
 3. Item 5: apagar os dois passos do workflow e `android/tools/`.
-4. Itens 6–7: no P11.
+4. Item 8: apagar `mugen_perf.c`, a chamada em `gfx.c` e os dois nomes do `--wrap`. Itens 6–7: no P11.
 5. Conferir com os `grep` do topo; rodar um boot no aparelho (menu → luta → Home → voltar) para ver que nada dependia deles.

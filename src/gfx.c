@@ -292,6 +292,7 @@ void Mugen_WatchdogBeat(void);
 
 void Mugen_DiagScanFrame(const unsigned char *pixels, int w, int h, int pitch, int frame);
 int Mugen_DiagWantScan(int frame);
+void Mugen_PerfFrame(void);
 
 static void Gfx_AndroidDebugFrame(SDL_Surface *surface, SDL_Surface *screen)
 {
@@ -301,6 +302,7 @@ static void Gfx_AndroidDebugFrame(SDL_Surface *surface, SDL_Surface *screen)
 
     frame++;
     Mugen_WatchdogBeat();
+    Mugen_PerfFrame();
     if (surface->format->BitsPerPixel == 16) {
         if (Mugen_DiagWantScan(frame)) {
             if (SDL_MUSTLOCK(surface)) {

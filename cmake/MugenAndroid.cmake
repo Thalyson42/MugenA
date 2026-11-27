@@ -178,6 +178,7 @@ add_library(mugen SHARED
   android/app/src/main/cpp/mugen_d003_stubs.c
   android/app/src/main/cpp/mugen_gl_stubs.c
   android/app/src/main/cpp/mugen_spritediag.c
+  android/app/src/main/cpp/mugen_perf.c
   $<TARGET_OBJECTS:mugen_core>
   $<TARGET_OBJECTS:mugen_sdl12_probe>)
 target_include_directories(mugen PRIVATE ${MUGEN_ANDROID_ENGINE_INCLUDES})
@@ -199,6 +200,6 @@ foreach(_w Sprite_DrawSoft8 Sprite_DrawSoft Gfx_SoftClear Gfx_SoftDrawRect Gfx_S
         Gfx_SoftFillRectHalfAdd Gfx_SoftHLine Gfx_SoftVLine Gfx_SoftHLineAdd Gfx_SoftHLineHalfAdd Gfx_SoftHLineSub
         Gfx_SoftVLineAdd Gfx_SoftVLineHalfAdd Gfx_SoftVLineSub Gfx_SoftPutPixel Gfx_SoftAddPixel Gfx_SoftInvertPixel
         Gfx_SoftDrawLine Gfx_SoftDrawLineAdd BgElem_DrawParallaxSoft BgElem_DrawParallaxSoftMasked SDL_UpperBlit
-        SDL_FillRect)
+        SDL_FillRect SDL_UpdateRect SDL_Flip)
     target_link_options(mugen PRIVATE "-Wl,--wrap=${_w}")
 endforeach()

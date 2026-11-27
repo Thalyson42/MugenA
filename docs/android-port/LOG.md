@@ -323,3 +323,8 @@ Pendente: confirmar D-001..D-006; criar branch android/main e commitar estes doc
 - Observação aberta (não bloqueia): depois de MUITO tempo em segundo plano, ao voltar aparece tela preta por alguns segundos e o jogo retoma de onde estava. Provável causa: o Android destrói a superfície/contexto GL enquanto o app está parado e o SDL2/sdl12-compat recria a janela e a textura de apresentação (e o engine só volta a apresentar depois). Investigar no P5/P6 (apresentação via textura GLES própria); medir quanto tempo leva e se há trabalho do engine (carga/Timer_ResetFrame) no intervalo. Teste de tela apagada/acesa e rotação: o dono relatou "passaram" ("os testes passaram").
 - Pendências do P3b: traços escuros do menu (estacionado, ver bloco "dashes parked"); remover diagnósticos (P12, `05-diagnosticos-a-remover.md`); PR da `android/p3b-sdl` para `android/main`.
 - Combinado com o dono: o CI não é consultado a cada push; só se o resultado for necessário (aí pede-se o log).
+
+### Pendência 4 (desempenho): medidor de fps antes do P5
+- Novo `mugen_perf.c` (item 8 de `05-diagnosticos-a-remover.md`): `--wrap` de `SDL_UpdateRect` e `SDL_Flip` (onde o sdl12-compat converte 16→32 bpp na CPU e envia a textura) e, a cada 120 quadros, uma linha `perf:` com fps, período médio do quadro, CPU média da thread da engine por quadro e tempo médio em UpdateRect/Flip. Serve de linha de base para comparar com o P5 (RGB565 direto para textura GLES).
+- Como ler: se o período ficar ~16,7 ms (60 fps) com CPU baixa, o limitador de quadros é quem manda e o caminho de apresentação não é gargalo; se o período passar de 16,7 ms e UpdateRect+Flip for grande parte dele, a conversão é o gargalo.
+- Aguarda o log do dono (menu ~10 s + luta ~30 s).
