@@ -164,3 +164,9 @@ Implementa D-002 (A). Fontes em `third_party/`, só com o que o Android usa (cad
 - Vulkan: o sistema declara 1.3, mas a versão real do driver do Mali-G52 e as extensões ainda não foram lidas (fica para a P8 ou antes). `vulkan.compute` = 0 → **não depender de compute shaders** no backend Vulkan.
 - 60 Hz casa com o tick de 60 fps do engine; sem necessidade de pacing para taxas altas.
 - ~1 GB de RAM livre: caches de sprites/texturas e o buffer do renderer software precisam de limite de memória desde a P5.
+
+## D-017: acelerômetro não é joystick; MugenActivity em paisagem (P3b M3)
+- Contexto: o SDL2 publica o acelerômetro do Android como joystick por padrão e o engine abre todo joystick (`Pads_Init`), então inclinar o aparelho contava como entrada de pad.
+- Decisão: `MugenActivity.onCreate` define `SDL_ACCELEROMETER_AS_JOYSTICK=0` (variável de ambiente, antes do SDL iniciar). A activity usa `screenOrientation="sensorLandscape"` (o jogo é 16:9 em paisagem; gira entre os dois lados, sem retrato).
+- Diagnóstico temporário ligado a isto (remover quando a causa for achada): `UiWatchdog.kt` (tag `mugen-ui`, mostra quem bloqueia a thread de UI) e `mugen_spritediag.c` (liga com `-Wl,--wrap=Sprite_DrawSoft8`, tag/prefixo `spritediag`).
+

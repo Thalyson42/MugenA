@@ -271,3 +271,11 @@ Pendente: confirmar D-001..D-006; criar branch android/main e commitar estes doc
 - Removed the BMP code from the frame diagnostic (never wrote files); kept the one-line frame-30 log and the watchdog beat.
 - Codec check (host, ASan): RLE8 encode/decode round trip clean (3000 random bitmaps). The RLE5 and LZ5 *encoders* read past their input and misalign stores (encoder-only, not used by the game at load); decoders could not be exercised this way. The purple specks stay open.
 - To verify on device: Home -> back to the app (no catch-up burst, menu alive), screen off/on, rotation.
+
+### P3b M3: commits of the previous session (recorded after the fact)
+- 571af93 accelerometer is not a joystick (SDL_ACCELEROMETER_AS_JOYSTICK=0 via Os.setenv in MugenActivity.onCreate) and sensorLandscape in the manifest (D-017).
+- a7030b6 UiWatchdog.kt (tag mugen-ui): reports who blocks the UI thread (ANR seen on focus changes).
+- 1f1768f / b2593f8 mugen_spritediag.c: wraps Sprite_DrawSoft8 (-Wl,--wrap) and logs once per tiny sprite (w<=16, h<=3) with slot, key, size, axis, draw params and first pixels with RGB565 colours. Prefix "spritediag" in mugen.log/logcat.
+- CI Android green on all four; Build (Windows) was not dispatched for them: done now.
+- Device (owner, A065M): a fight now runs (stage and both fighters render). Small dark dashes (about 8x2 px) remain at fixed places: on the ground 115 px in front of each fighter (symmetric around the screen centre), at points of the title menu background, and in the first screenshot near the feet. They do not exist in the PC build.
+- Next: owner sends logcat with the "spritediag" lines from a fight and the title menu to identify the sprite.
