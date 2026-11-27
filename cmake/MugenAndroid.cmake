@@ -75,6 +75,10 @@ set(SDL_HIDAPI OFF CACHE BOOL "" FORCE)
 set(SDL_HIDAPI_JOYSTICK OFF CACHE BOOL "" FORCE)
 set(SDL_VIRTUAL_JOYSTICK OFF CACHE BOOL "" FORCE)
 set(SDL_CCACHE OFF CACHE BOOL "" FORCE)
+# No internal sanity checks (D-018): with them on ("auto" is on for a non-NDEBUG build) SDL2 shows an "Assertion Failed" dialog
+# for harmless conditions (add_capture_device: HasCaptureSupport, at audio init), and when one fires on the UI thread (Android's
+# audio-device callback) the dialog waits for the very thread that is blocked: ANR, "not responding" (seen on the A065M).
+set(SDL_ASSERTIONS "disabled" CACHE STRING "" FORCE)
 add_subdirectory("${_tp}/SDL2" "${CMAKE_CURRENT_BINARY_DIR}/SDL2")
 target_link_options(SDL2 PRIVATE ${MUGEN_ANDROID_LINK_FLAGS})
 
@@ -84,6 +88,7 @@ add_library(SDL12 SHARED "${_tp}/sdl12-compat/src/SDL12_compat.c")
 set_target_properties(SDL12 PROPERTIES OUTPUT_NAME SDL)            # libSDL.so
 # SDL12_compat.c includes the SDL 2 headers by name (SDL.h): they must come first for this one target.
 target_include_directories(SDL12 PRIVATE "${_tp}/SDL2/include")
+target_compile_definitions(SDL12 PRIVATE SDL_ASSERT_LEVEL=0)   # same reason as SDL_ASSERTIONS above (D-018)
 target_include_directories(SDL12 INTERFACE "${_tp}/sdl12-compat/include/SDL")   # what the engine includes (M1c)
 target_compile_definitions(SDL12 PRIVATE _REENTRANT SDL_DISABLE_IMMINTRIN_H)
 target_compile_options(SDL12 PRIVATE -w)

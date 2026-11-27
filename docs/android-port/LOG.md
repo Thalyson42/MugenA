@@ -279,3 +279,8 @@ Pendente: confirmar D-001..D-006; criar branch android/main e commitar estes doc
 - CI Android green on all four; Build (Windows) was not dispatched for them: done now.
 - Device (owner, A065M): a fight now runs (stage and both fighters render). Small dark dashes (about 8x2 px) remain at fixed places: on the ground 115 px in front of each fighter (symmetric around the screen centre), at points of the title menu background, and in the first screenshot near the feet. They do not exist in the PC build.
 - Next: owner sends logcat with the "spritediag" lines from a fight and the title menu to identify the sprite.
+
+### P3b M3: ANR "not responding" repeating during play = SDL assertion dialog on the UI thread (D-018)
+- Owner log (mugen-ui watchdog): UI thread WAITING in SDLActivity.messageboxShowMessageBox called from SDLAudioManager.addAudioDevice (Android audio-device callback). Logcat: "SDL/ASSERT ... add_capture_device ... HasCaptureSupport" and an "Assertion Failed" window. SDL2 was built with assertions on; the dialog needs the UI thread, which is the one that raised it.
+- Fix: SDL_ASSERTIONS=disabled (SDL2) and SDL_ASSERT_LEVEL=0 (sdl12-compat) in cmake/MugenAndroid.cmake.
+- The log had no "spritediag" line: the capture was taken at the title menu, before any tiny sprite was drawn under the diag's thresholds, or the drawing of the dashes does not go through Sprite_DrawSoft8 (to check next). Only "android frame 30" is in it.

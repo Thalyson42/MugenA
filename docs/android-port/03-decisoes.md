@@ -170,3 +170,7 @@ Implementa D-002 (A). Fontes em `third_party/`, só com o que o Android usa (cad
 - Decisão: `MugenActivity.onCreate` define `SDL_ACCELEROMETER_AS_JOYSTICK=0` (variável de ambiente, antes do SDL iniciar). A activity usa `screenOrientation="sensorLandscape"` (o jogo é 16:9 em paisagem; gira entre os dois lados, sem retrato).
 - Diagnóstico temporário ligado a isto (remover quando a causa for achada): `UiWatchdog.kt` (tag `mugen-ui`, mostra quem bloqueia a thread de UI) e `mugen_spritediag.c` (liga com `-Wl,--wrap=Sprite_DrawSoft8`, tag/prefixo `spritediag`).
 
+## D-018: SDL2 sem asserts internos (P3b M3)
+- Problema (A065M, logcat): `SDL/ASSERT: Assertion failure at add_capture_device (SDL_audio.c:421) 'current_audio.impl.HasCaptureSupport'`. O SDL2 estava com `SDL_ASSERTIONS=auto`, que liga as verificações em build sem NDEBUG, e o handler padrão abre uma janela "Assertion Failed" (`SDLActivity.messageboxShowMessageBox`). Quando o assert dispara na thread de UI (callback `onAudioDevicesAdded` do Android) a janela espera a própria thread de UI: ANR "MUGEN não está respondendo", que volta a cada alguns segundos.
+- Decisão: `SDL_ASSERTIONS=disabled` no SDL2 e `SDL_ASSERT_LEVEL=0` no sdl12-compat. A condição é inofensiva (o dispositivo de captura é só registrado). Nada no engine muda.
+
