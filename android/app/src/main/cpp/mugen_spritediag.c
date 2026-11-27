@@ -252,7 +252,8 @@ void Mugen_DiagScanFrame(const unsigned char *pixels, int w, int h, int pitch, i
                 }
                 n = luma565(row[x - 1]);
                 xm = x + len / 2;
-                if (luma565(c) + 20 > n ||
+                if (c != 0 || n < 90 ||   /* only black dashes on a bright area (the title-menu ones); the fight "dashes" are sprite shading */
+                    luma565(c) + 20 > n ||
                     abs(luma565(*(const unsigned short *)(pixels + (size_t)(y - 1) * pitch + xm * 2)) - n) > 8 ||
                     abs(luma565(*(const unsigned short *)(pixels + (size_t)(y + 3) * pitch + xm * 2)) - n) > 8) {
                     continue;
