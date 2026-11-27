@@ -7,6 +7,7 @@ import android.util.Log
 import java.io.File
 
 /**
+ * REMOVER-NO-RELEASE (docs/android-port/05-diagnosticos-a-remover.md) item 4.
  * Diagnostic only (P3b M3, D-017). The native watchdog (mugen_watchdog.c) fires when the engine stops presenting frames;
  * the "app is not responding" dialog seen on the A065M came while the engine kept running, so the UI thread was the one
  * stuck. A helper thread pings the main looper once a second; if it does not answer for 3 s (and again at 8 s) this logs,

@@ -48,6 +48,7 @@ Estados: `não iniciada` · `EM ANDAMENTO` · `BLOQUEADA (motivo)` · `CONCLUÍD
 | `01-analise-do-repo.md` | o que foi descoberto no código e os riscos do port |
 | `02-fases.md` | cada fase: objetivo, tarefas, **arquivos a levar para a conversa**, critério de pronto |
 | `03-decisoes.md` | registro de decisões (ADR) e perguntas em aberto |
+| `05-diagnosticos-a-remover.md` | **lista dos diagnósticos temporários** (watchdogs, spritediag, passos de CI…) a remover antes do release, com tag `REMOVER-NO-RELEASE` no código |
 | `04-modelos-de-conversa.md` | prompt de abertura, bloco de handoff de fechamento, checklist de troca de conta |
 | `LOG.md` | (criar na P1) diário curto: uma entrada por conversa |
 

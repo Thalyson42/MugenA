@@ -3,6 +3,7 @@
 
     <uses-feature android:glEsVersion="0x00030000" android:required="true" />
 
+    <!-- REMOVER-NO-RELEASE item 6 (docs/android-port/05-diagnosticos-a-remover.md): label "MUGEN (diag)" -->
     <application
         android:allowBackup="false"
         android:label="MUGEN (diag)"

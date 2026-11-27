@@ -7,6 +7,7 @@
  * both neighbours and whose rows above/below match the neighbours) and reports the last events whose box covers the
  * dash, newest first, with the source pixel for sprites. Output goes to mugen.log / logcat, prefix "spritediag".
  * Delete it (and the --wrap loop in cmake/MugenAndroid.cmake) once the dashes are explained.
+ * REMOVER-NO-RELEASE (docs/android-port/05-diagnosticos-a-remover.md) item 1.
  */
 #include <stdlib.h>
 #include "mugen.h"

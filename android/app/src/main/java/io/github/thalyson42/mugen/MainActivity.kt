@@ -22,6 +22,7 @@ import kotlin.concurrent.thread
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
+// REMOVER-NO-RELEASE item 7 (docs/android-port/05-diagnosticos-a-remover.md): decide in P11 what stays as a user-facing "About/Diagnostics" screen.
 /**
  * Diagnostic app. P1: reports the device facts that decision D-010 asks for (Android version, ABI, GLES, Vulkan
  * features, screen, RAM) and the versions of the libraries linked into libmugen.so. P3a: also sets the data directory

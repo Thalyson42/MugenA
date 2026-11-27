@@ -126,6 +126,7 @@ existente sem alterar `cmdinput.c`; gamepad (SDL joystick/GameController) e tecl
 ## P12 — QA, desempenho e release  **(Marco M4)**
 **Tarefas:** matriz de dispositivos (GPU Adreno/Mali/PowerVR, Android versões), perfil de CPU/GPU, correção de vazamentos/ANRs,
 assinatura de APK/AAB, CI de release, README de usuário, licenças de terceiros (LGPL, D-006).
+**Obrigatório antes do release:** remover os diagnósticos temporários listados em `05-diagnosticos-a-remover.md` (watchdogs `mugen-wd`/`mugen-ui`, `spritediag`, log de quadro, passos de simbolização, rótulo "(diag)").
 **Levar:** `LOG.md`, resultados de teste, `android/*`, `.github/workflows/*`.
 **Pronto quando:** APK/AAB assinado em release do GitHub com notas e checklist de testes aprovado.
 

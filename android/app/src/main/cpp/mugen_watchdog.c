@@ -4,6 +4,7 @@
  * backtrace (pc relative to its library, so it can be symbolized against the unstripped libmugen.so of the same build,
  * see android/tools/symbolize-addrs.txt and the CI step), plus its kernel state and wait channel. Diagnostics only:
  * it never changes the engine's behaviour. Log tag: mugen-wd.
+ * REMOVER-NO-RELEASE (docs/android-port/05-diagnosticos-a-remover.md) item 3.
  */
 #define _GNU_SOURCE
 #include <android/log.h>

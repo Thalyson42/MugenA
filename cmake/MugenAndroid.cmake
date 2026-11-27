@@ -192,6 +192,7 @@ target_link_libraries(mugen PRIVATE mugen_platform lua51 png12 minizip cgltf stb
   $<LINK_ONLY:SDL12> log android ${MUGEN_ZLIB})
 add_dependencies(mugen SDL2 SDL12)
 target_link_options(mugen PRIVATE ${MUGEN_ANDROID_LINK_FLAGS})
+# REMOVER-NO-RELEASE (docs/android-port/05-diagnosticos-a-remover.md) item 1.
 # Diagnostic (P3b M3, D-017): mugen_spritediag.c logs tiny sprites drawn by the System renderer; delete with the dashes' cause found.
 foreach(_w Sprite_DrawSoft8 Sprite_DrawSoft Gfx_SoftClear Gfx_SoftDrawRect Gfx_SoftDrawRectAdd Gfx_SoftDrawRectSub
         Gfx_SoftDrawRectBlend Gfx_SoftBlendRect Gfx_SoftFillRect Gfx_SoftFillRectAdd Gfx_SoftFillRectSub

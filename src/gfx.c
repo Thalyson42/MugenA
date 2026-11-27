@@ -286,6 +286,7 @@ static void Gfx_PresentGlScreen(const SDL_Surface *surface)
  * Android bring-up diagnostics (P3b): at frame 30, logs the format of the composed screen buffer and how many pixels
  * are not black (a black or garbled screen can be told from a presentation problem), and beats the stall watchdog
  * (mugen_watchdog.c) once per frame. Nothing of this exists on Windows.
+ * REMOVER-NO-RELEASE (docs/android-port/05-diagnosticos-a-remover.md) items 1-3: this function, its declarations and the call in Gfx_Present.
  */
 void Mugen_WatchdogBeat(void);
 
