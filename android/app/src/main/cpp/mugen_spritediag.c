@@ -89,72 +89,202 @@ static int g_watchN = 0;
 static int g_watchX[WATCH_MAX], g_watchY[WATCH_MAX];
 static unsigned short g_watchBefore[WATCH_MAX];
 static int g_watchLogged = 0;
-static int g_scanDone = 0;
 
-static int g_watchSince = 0;   /* frame at which the watch points were set */
+
+/* ---- per-frame record of the sprite draws on the screen buffer ----
+ * Every Sprite_DrawSoft8 on a large (>= 1000 px wide) target is recorded; when the scan finds a dash at the end of the
+ * frame, the last recorded draws whose rectangle covers it are reported with the source pixel behind it. */
+#define RING_MAX 6000
+typedef struct {
+    SpriteSet *set;
+    int sprite;
+    float x, y, sx, sy;
+    unsigned int flags;
+    int blend;
+} DiagDraw;
+static DiagDraw g_ring[RING_MAX];
+static int g_ringN = 0;
+
+static void ring_add(const DrawParams *dp, SpriteSet *set, int sprite)
+{
+    DiagDraw *d;
+    if (g_ringN >= RING_MAX || g_renderTarget == NULL || g_renderTarget->sprites == NULL) {
+        return;
+    }
+    {
+        const KeyedArray *ta = g_renderTarget->sprites;
+        const Sprite *t;
+        if (g_renderTargetSprite < 0 || g_renderTargetSprite >= ta->capacity) {
+            return;
+        }
+        t = (const Sprite *)(ta->data + ta->elem_size * g_renderTargetSprite);
+        if (t->w < 1000) {
+            return;
+        }
+    }
+    d = &g_ring[g_ringN++];
+    d->set = set;
+    d->sprite = sprite;
+    d->x = dp->x;
+    d->y = dp->y;
+    d->sx = dp->scale_x;
+    d->sy = dp->scale_y;
+    d->flags = dp->flags;
+    d->blend = dp->blend;
+}
+
+/* Reports the last draws (newest first, at most 4) that cover pixel (wx, wy). */
+static void ring_report(int wx, int wy, unsigned short colour)
+{
+    int i, shown = 0;
+    for (i = g_ringN - 1; i >= 0 && shown < 4; i--) {
+        const DiagDraw *d = &g_ring[i];
+        const KeyedArray *a;
+        const Sprite *spr;
+        const unsigned char *px;
+        const unsigned short *pal = NULL;
+        float sx = d->sx != 0.0f ? d->sx : 1.0f, sy = d->sy != 0.0f ? d->sy : 1.0f;
+        float x0, y0, fx, fy;
+        int lx, ly, r, c, k;
+
+        if (d->set == NULL || d->set->sprites == NULL) {
+            continue;
+        }
+        a = d->set->sprites;
+        if (d->sprite < 0 || d->sprite >= a->capacity || a->slots == NULL || !a->slots[d->sprite].used) {
+            continue;
+        }
+        spr = (const Sprite *)(a->data + a->elem_size * d->sprite);
+        if (spr->w <= 0 || spr->h <= 0) {
+            continue;
+        }
+        /* unflipped mapping: the axis (spr->x, spr->y) sits at (d->x, d->y), scaled */
+        x0 = d->x - spr->x * sx;
+        y0 = d->y - spr->y * sy;
+        fx = (wx - x0) / sx;
+        fy = (wy - y0) / sy;
+        lx = (int)fx;
+        ly = (int)fy;
+        if (fx < 0 || fy < 0 || lx >= spr->w || ly >= spr->h) {
+            /* try the horizontally mirrored placement */
+            x0 = d->x + (spr->x - spr->w + 1) * sx;
+            fx = (wx - x0) / sx;
+            lx = (int)fx;
+            if (fx < 0 || fy < 0 || lx >= spr->w || ly >= spr->h) {
+                continue;
+            }
+            lx = spr->w - 1 - lx;
+            Log_Printf("spritediag: (mirrored placement assumed)\n");
+        }
+        shown++;
+        px = (const unsigned char *)Sprite_GetPixels(d->set, d->sprite);
+        if (spr->pal_index >= 0) {
+            Palette *p = SpriteSet_GetPaletteConverted(d->set, spr->pal_index);
+            if (p != NULL) {
+                pal = p->rgb565;
+            }
+        }
+        Log_Printf("spritediag: DASH %d,%d (%04x) covered by draw #%d of %d: set %p slot %d key %d,%d size %dx%d axis "
+                   "%d,%d bpp %d fmt %d pal %d at %.1f,%.1f scale %.2f,%.2f flags %x blend %d -> source %d,%d\n",
+                   wx, wy, (unsigned)colour, i, g_ringN, (void *)d->set, d->sprite, a->slots[d->sprite].key1,
+                   a->slots[d->sprite].key2, spr->w, spr->h, spr->x, spr->y, spr->bpp, spr->format, spr->pal_index,
+                   d->x, d->y, d->sx, d->sy, d->flags, d->blend, lx, ly);
+        if (px == NULL || spr->rows == NULL) {
+            continue;
+        }
+        if (pal != NULL) {
+            int found = 0;
+            Log_Printf("spritediag:   palette indices with the dash colour:");
+            for (k = 0; k < 256; k++) {
+                if (pal[k] == colour) {
+                    Log_Printf(" %d", k);
+                    found++;
+                }
+            }
+            Log_Printf("%s\n", found ? "" : " none");
+        }
+        for (r = ly - 3; r <= ly + 3; r++) {
+            const unsigned char *row;
+            if (r < 0 || r >= spr->h) {
+                continue;
+            }
+            row = px + spr->rows[r];
+            Log_Printf("spritediag:   src row %d, cols %d..%d:", r, lx - 6 < 0 ? 0 : lx - 6, lx + 6);
+            for (c = lx - 6; c <= lx + 6; c++) {
+                if (c < 0 || c >= spr->w) {
+                    continue;
+                }
+                if (pal != NULL) {
+                    Log_Printf(" %d=%04x", row[c], (unsigned)pal[row[c]]);
+                } else {
+                    Log_Printf(" %d", row[c]);
+                }
+            }
+            Log_Printf("\n");
+        }
+    }
+    if (shown == 0) {
+        Log_Printf("spritediag: DASH %d,%d (%04x): no recorded sprite draw covers it (%d draws recorded)\n", wx, wy,
+                   (unsigned)colour, g_ringN);
+    }
+}
+
 
 static int luma565(unsigned int c)
 {
     return (int)(((c >> 11) & 31) * 24 + ((c >> 5) & 63) * 12 + (c & 31) * 9) / 10;
 }
 
+static int g_scans = 0;
+static int g_lastScanFrame = 0;
+
 /* 1 on the frames where the finished buffer should be scanned (gfx.c locks the surface only then). */
 int Mugen_DiagWantScan(int frame)
 {
-    return !g_scanDone && frame >= 20 && frame % 20 == 0;
+    return g_scans < 4 && frame >= 20 && frame % 20 == 0 && frame - g_lastScanFrame >= 60;
 }
 
-/* Called every frame from Gfx_AndroidDebugFrame; the scan runs only when Mugen_DiagWantScan said so (pixels != NULL). */
+/* Called every frame from Gfx_AndroidDebugFrame at the end of the frame; pixels is non-NULL only when
+ * Mugen_DiagWantScan said so. Resets the draw record for the next frame. */
 void Mugen_DiagScanFrame(const unsigned char *pixels, int w, int h, int pitch, int frame)
 {
     int x, y, found = 0;
 
-    if (g_scanDone && frame > g_watchSince + 3) {
-        g_watchLogged = WATCH_LOG;   /* stop logging three frames after the dashes were found */
-        return;
-    }
-    if (pixels == NULL) {
-        return;
-    }
-    for (y = 1; y < h - 4 && found < 12; y++) {
-        const unsigned short *row = (const unsigned short *)(pixels + (size_t)y * pitch);
-        for (x = 2; x < w - 14 && found < 12; x++) {
-            int len = 1, n, xm;
-            unsigned short c = row[x];
-            if (row[x - 1] == c) {
-                continue;
+    if (pixels != NULL) {
+        for (y = 1; y < h - 4 && found < 8; y++) {
+            const unsigned short *row = (const unsigned short *)(pixels + (size_t)y * pitch);
+            for (x = 2; x < w - 14 && found < 8; x++) {
+                int len = 1, n, xm;
+                unsigned short c = row[x];
+                if (row[x - 1] == c) {
+                    continue;
+                }
+                while (len < 14 && row[x + len] == c) {
+                    len++;
+                }
+                if (len < 4 || len > 12 || row[x - 1] != row[x + len]) {
+                    continue;
+                }
+                n = luma565(row[x - 1]);
+                xm = x + len / 2;
+                if (luma565(c) + 20 > n ||
+                    abs(luma565(*(const unsigned short *)(pixels + (size_t)(y - 1) * pitch + xm * 2)) - n) > 8 ||
+                    abs(luma565(*(const unsigned short *)(pixels + (size_t)(y + 3) * pitch + xm * 2)) - n) > 8) {
+                    continue;
+                }
+                Log_Printf("spritediag: frame %d dash at x=%d y=%d len=%d colour %04x around %04x\n", frame, x, y, len,
+                           (unsigned)c, (unsigned)row[x - 1]);
+                ring_report(xm, y, c);
+                found++;
+                x += len;
             }
-            while (len < 14 && row[x + len] == c) {
-                len++;
-            }
-            if (len < 4 || len > 12 || row[x - 1] != row[x + len]) {
-                continue;
-            }
-            n = luma565(row[x - 1]);
-            xm = x + len / 2;
-            /* clearly darker than its surroundings, and the rows above and below are the surroundings again */
-            if (luma565(c) + 20 > n ||
-                abs(luma565(*(const unsigned short *)(pixels + (size_t)(y - 1) * pitch + xm * 2)) - n) > 8 ||
-                abs(luma565(*(const unsigned short *)(pixels + (size_t)(y + 3) * pitch + xm * 2)) - n) > 8) {
-                continue;
-            }
-            Log_Printf("spritediag: frame %d dash at x=%d y=%d len=%d colour %04x around %04x\n", frame, x, y, len,
-                       (unsigned)c, (unsigned)row[x - 1]);
-            if (g_watchN < WATCH_MAX) {
-                g_watchX[g_watchN] = xm;
-                g_watchY[g_watchN] = y;
-                g_watchN++;
-            }
-            found++;
-            x += len;
+        }
+        if (found > 0) {
+            g_scans++;
+            g_lastScanFrame = frame;
         }
     }
-    if (found > 0) {
-        g_scanDone = 1;
-        g_watchSince = frame;
-        g_watchLogged = 0;
-        Log_Printf("spritediag: frame %d scan found %d dashes\n", frame, found);
-    }
+    g_ringN = 0;
 }
 
 static unsigned short *watch_px(int i)
@@ -288,6 +418,7 @@ static void watch_detail(const DrawParams *dp, SpriteSet *set, int sprite)
 void __wrap_Sprite_DrawSoft8(const DrawParams *dp, SpriteSet *set, int sprite)
 {
     diag_note(dp, set, sprite);
+    ring_add(dp, set, sprite);
     watch_before();
     __real_Sprite_DrawSoft8(dp, set, sprite);
     watch_detail(dp, set, sprite);
