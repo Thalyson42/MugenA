@@ -80,6 +80,9 @@ set(SDL_CCACHE OFF CACHE BOOL "" FORCE)
 # audio-device callback) the dialog waits for the very thread that is blocked: ANR, "not responding" (seen on the A065M).
 set(SDL_ASSERTIONS "disabled" CACHE STRING "" FORCE)
 add_subdirectory("${_tp}/SDL2" "${CMAKE_CURRENT_BINARY_DIR}/SDL2")
+# The cache variable above was not enough on the device (the assertion still fired in the e52a2b9 APK): force the level on
+# the SDL2 target itself (SDL_assert.h honours SDL_ASSERT_LEVEL first).
+target_compile_definitions(SDL2 PRIVATE SDL_ASSERT_LEVEL=0)
 target_link_options(SDL2 PRIVATE ${MUGEN_ANDROID_LINK_FLAGS})
 
 # sdl12-compat: one C file. Its own CMakeLists.txt (vendored for reference) is not used: it wants find_package(SDL2) and

@@ -6,6 +6,7 @@
  * RGB565 colours. It forwards every call unchanged. Output goes to mugen.log / logcat, prefix "spritediag".
  * Delete it (and the link option in cmake/MugenAndroid.cmake) once the dashes are explained.
  */
+#include <stdlib.h>
 #include "mugen.h"
 
 void __real_Sprite_DrawSoft8(const DrawParams *dp, SpriteSet *set, int sprite);
@@ -83,24 +84,42 @@ static void diag_note(const DrawParams *dp, SpriteSet *set, int sprite)
  * after, and logs the call that changes them ("spritediag: watch ..."), so the last line per frame names the
  * culprit. Only the first WATCH_LOG lines are logged. */
 #define WATCH_MAX 6
-#define WATCH_LOG 160
+#define WATCH_LOG 600
 static int g_watchN = 0;
 static int g_watchX[WATCH_MAX], g_watchY[WATCH_MAX];
 static unsigned short g_watchBefore[WATCH_MAX];
 static int g_watchLogged = 0;
 static int g_scanDone = 0;
 
+static int g_watchSince = 0;   /* frame at which the watch points were set */
+
+static int luma565(unsigned int c)
+{
+    return (int)(((c >> 11) & 31) * 24 + ((c >> 5) & 63) * 12 + (c & 31) * 9) / 10;
+}
+
+/* 1 on the frames where the finished buffer should be scanned (gfx.c locks the surface only then). */
+int Mugen_DiagWantScan(int frame)
+{
+    return !g_scanDone && frame >= 20 && frame % 20 == 0;
+}
+
+/* Called every frame from Gfx_AndroidDebugFrame; the scan runs only when Mugen_DiagWantScan said so (pixels != NULL). */
 void Mugen_DiagScanFrame(const unsigned char *pixels, int w, int h, int pitch, int frame)
 {
     int x, y, found = 0;
 
-    if (g_scanDone || (frame != 45 && frame != 150 && frame != 400)) {
+    if (g_scanDone && frame > g_watchSince + 3) {
+        g_watchLogged = WATCH_LOG;   /* stop logging three frames after the dashes were found */
         return;
     }
-    for (y = 4; y < h - 4 && found < 12; y++) {
+    if (pixels == NULL) {
+        return;
+    }
+    for (y = 1; y < h - 4 && found < 12; y++) {
         const unsigned short *row = (const unsigned short *)(pixels + (size_t)y * pitch);
         for (x = 2; x < w - 14 && found < 12; x++) {
-            int len = 1;
+            int len = 1, n, xm;
             unsigned short c = row[x];
             if (row[x - 1] == c) {
                 continue;
@@ -108,13 +127,21 @@ void Mugen_DiagScanFrame(const unsigned char *pixels, int w, int h, int pitch, i
             while (len < 14 && row[x + len] == c) {
                 len++;
             }
-            if (len < 4 || len > 12 || row[x - 1] != row[x + len] || row[x - 1] == c) {
+            if (len < 4 || len > 12 || row[x - 1] != row[x + len]) {
+                continue;
+            }
+            n = luma565(row[x - 1]);
+            xm = x + len / 2;
+            /* clearly darker than its surroundings, and the rows above and below are the surroundings again */
+            if (luma565(c) + 20 > n ||
+                abs(luma565(*(const unsigned short *)(pixels + (size_t)(y - 1) * pitch + xm * 2)) - n) > 8 ||
+                abs(luma565(*(const unsigned short *)(pixels + (size_t)(y + 3) * pitch + xm * 2)) - n) > 8) {
                 continue;
             }
             Log_Printf("spritediag: frame %d dash at x=%d y=%d len=%d colour %04x around %04x\n", frame, x, y, len,
                        (unsigned)c, (unsigned)row[x - 1]);
             if (g_watchN < WATCH_MAX) {
-                g_watchX[g_watchN] = x + len / 2;
+                g_watchX[g_watchN] = xm;
                 g_watchY[g_watchN] = y;
                 g_watchN++;
             }
@@ -124,8 +151,10 @@ void Mugen_DiagScanFrame(const unsigned char *pixels, int w, int h, int pitch, i
     }
     if (found > 0) {
         g_scanDone = 1;
+        g_watchSince = frame;
+        g_watchLogged = 0;
+        Log_Printf("spritediag: frame %d scan found %d dashes\n", frame, found);
     }
-    Log_Printf("spritediag: frame %d scan found %d dashes\n", frame, found);
 }
 
 static unsigned short *watch_px(int i)
@@ -152,6 +181,9 @@ static unsigned short *watch_px(int i)
 static void watch_before(void)
 {
     int i;
+    if (g_watchLogged >= WATCH_LOG) {
+        return;
+    }
     for (i = 0; i < g_watchN; i++) {
         unsigned short *p = watch_px(i);
         g_watchBefore[i] = p != NULL ? *p : 0;

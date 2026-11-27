@@ -290,6 +290,7 @@ static void Gfx_PresentGlScreen(const SDL_Surface *surface)
 void Mugen_WatchdogBeat(void);
 
 void Mugen_DiagScanFrame(const unsigned char *pixels, int w, int h, int pitch, int frame);
+int Mugen_DiagWantScan(int frame);
 
 static void Gfx_AndroidDebugFrame(SDL_Surface *surface, SDL_Surface *screen)
 {
@@ -299,13 +300,17 @@ static void Gfx_AndroidDebugFrame(SDL_Surface *surface, SDL_Surface *screen)
 
     frame++;
     Mugen_WatchdogBeat();
-    if (surface->format->BitsPerPixel == 16 && (frame == 45 || frame == 150 || frame == 400)) {
-        if (SDL_MUSTLOCK(surface)) {
-            SDL_LockSurface(surface);
-        }
-        Mugen_DiagScanFrame((const unsigned char *)surface->pixels, surface->w, surface->h, surface->pitch, frame);
-        if (SDL_MUSTLOCK(surface)) {
-            SDL_UnlockSurface(surface);
+    if (surface->format->BitsPerPixel == 16) {
+        if (Mugen_DiagWantScan(frame)) {
+            if (SDL_MUSTLOCK(surface)) {
+                SDL_LockSurface(surface);
+            }
+            Mugen_DiagScanFrame((const unsigned char *)surface->pixels, surface->w, surface->h, surface->pitch, frame);
+            if (SDL_MUSTLOCK(surface)) {
+                SDL_UnlockSurface(surface);
+            }
+        } else {
+            Mugen_DiagScanFrame(NULL, 0, 0, 0, frame);
         }
     }
     for (i = 0; i < 1; i++) {
