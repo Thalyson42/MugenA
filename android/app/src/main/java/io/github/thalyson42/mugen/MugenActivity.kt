@@ -22,6 +22,7 @@ class MugenActivity : SDLActivity() {
         } catch (e: Exception) {
             Log.w("mugen", "setenv SDL_ACCELEROMETER_AS_JOYSTICK failed: $e")
         }
+        UiWatchdog.start()      // diagnostic: logs the UI thread stack if it stops answering (tag mugen-ui)
         super.onCreate(savedInstanceState)
     }
 
