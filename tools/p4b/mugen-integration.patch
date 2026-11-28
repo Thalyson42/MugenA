@@ -1,0 +1,94 @@
+diff --git a/cmake/MugenAndroid.cmake b/cmake/MugenAndroid.cmake
+index 4337f76..d0f6ed8 100644
+--- a/cmake/MugenAndroid.cmake
++++ b/cmake/MugenAndroid.cmake
+@@ -131,7 +131,36 @@ else()
+   message(WARNING "P4a: third_party/SDL_mixer or third_party/libresample missing: run tools/vendor-p4a.sh; "
+                   "building with the temporary audio stubs (no sound).")
+ endif()
+-# TODO(P4b, D-003): libmpg123 (BGM). TODO(P4c, D-003): SDL_ttf (+FreeType), SDL_gfx zoomSurface.
++
++# ---- P4b (D-003, D-019, D-020): libmpg123 1.33.7, vendored by tools/vendor-p4b.sh ---------------------------------------------
++# The BGM plugin of the engine loads "libmpg123-0.dll" with LoadLibraryA/GetProcAddress (bgmplugins.c); on Android that name
++# is mapped to libmpg123.so (Mugen_LoadLibraryA), which is built here as a SHARED library so that it is packaged in the APK
++# next to libmugen.so (and stays replaceable: it is LGPL-2.1, D-006). Generic C decoder with a float core (no NEON/asm), the
++# configuration Wine uses for the same sources; config.h is hand-written. Without third_party/mpg123 the BGM stays off.
++set(MUGEN_MPG123_REAL OFF)
++if(EXISTS "${_tp}/mpg123/src/libmpg123/libmpg123.c")
++  set(MUGEN_MPG123_REAL ON)
++  set(_mp "${_tp}/mpg123")
++  add_library(mpg123 SHARED
++    "${_mp}/src/compat/compat.c" "${_mp}/src/compat/compat_str.c"
++    "${_mp}/src/libmpg123/dct64.c" "${_mp}/src/libmpg123/dither.c" "${_mp}/src/libmpg123/equalizer.c"
++    "${_mp}/src/libmpg123/format.c" "${_mp}/src/libmpg123/frame.c" "${_mp}/src/libmpg123/icy.c"
++    "${_mp}/src/libmpg123/icy2utf8.c" "${_mp}/src/libmpg123/id3.c" "${_mp}/src/libmpg123/index.c"
++    "${_mp}/src/libmpg123/layer1.c" "${_mp}/src/libmpg123/layer2.c" "${_mp}/src/libmpg123/layer3.c"
++    "${_mp}/src/libmpg123/lfs_wrap.c" "${_mp}/src/libmpg123/libmpg123.c" "${_mp}/src/libmpg123/ntom.c"
++    "${_mp}/src/libmpg123/optimize.c" "${_mp}/src/libmpg123/parse.c" "${_mp}/src/libmpg123/readers.c"
++    "${_mp}/src/libmpg123/stringbuf.c" "${_mp}/src/libmpg123/synth.c" "${_mp}/src/libmpg123/synth_8bit.c"
++    "${_mp}/src/libmpg123/synth_real.c" "${_mp}/src/libmpg123/synth_s32.c" "${_mp}/src/libmpg123/tabinit.c")
++  set_target_properties(mpg123 PROPERTIES OUTPUT_NAME mpg123 POSITION_INDEPENDENT_CODE ON)   # libmpg123.so
++  target_include_directories(mpg123 PRIVATE "${_mp}" "${_mp}/src" "${_mp}/src/compat" "${_mp}/src/libmpg123"
++    "${_mp}/src/common" "${_mp}/src/include")
++  target_compile_definitions(mpg123 PRIVATE HAVE_CONFIG_H OPT_GENERIC OPT_GENERIC_DITHER REAL_IS_FLOAT NO_CATCHSIGNAL)
++  # -O2 even in a Debug build: the decoder runs on the BGM thread, and at -O0 it would cost far too much CPU
++  target_compile_options(mpg123 PRIVATE -w -O2)
++  target_link_libraries(mpg123 PRIVATE m)
++  target_link_options(mpg123 PRIVATE ${MUGEN_ANDROID_LINK_FLAGS})
++endif()
++# TODO(P4c, D-003): SDL_ttf (+FreeType), SDL_gfx zoomSurface.
+ 
+ # Compile flags of every engine source (mugen_core, mugen_p3a, mugen_platform, libmugen.so). R2: no FMA contraction,
+ # never -ffast-math. The original is a signed-char, non-strict-aliasing MSVC binary: char is unsigned on arm64 and clang
+@@ -239,6 +268,9 @@ if(MUGEN_AUDIO_REAL)
+   target_compile_definitions(mugen PRIVATE MUGEN_AUDIO_REAL=1)
+ endif()
+ add_dependencies(mugen SDL2 SDL12)
++if(MUGEN_MPG123_REAL)
++  add_dependencies(mugen mpg123)   # libmpg123.so has to be in the APK next to libmugen.so (loaded by dlopen at BGM init)
++endif()
+ target_link_options(mugen PRIVATE ${MUGEN_ANDROID_LINK_FLAGS})
+ # REMOVER-NO-RELEASE (docs/android-port/05-diagnosticos-a-remover.md) item 1.
+ # Diagnostic (P3b M3, D-017): mugen_spritediag.c logs tiny sprites drawn by the System renderer; delete with the dashes' cause found.
+diff --git a/src/platform/platform_posix.c b/src/platform/platform_posix.c
+index 7f4dc23..42220fd 100644
+--- a/src/platform/platform_posix.c
++++ b/src/platform/platform_posix.c
+@@ -139,3 +139,20 @@ int Mugen_GetLocaleInfoA(DWORD locale, DWORD type, char *buf, int size)
+     }
+     return 0;
+ }
++
++/* P4b (D-020): see platform_posix.h. The name is compared without its directory and ignoring case. */
++void *Mugen_LoadLibraryA(const char *name)
++{
++    const char *base = name;
++    const char *p;
++
++    for (p = name; *p != '\0'; p++) {
++        if (*p == '/' || *p == '\\') {
++            base = p + 1;
++        }
++    }
++    if (strcasecmp(base, "libmpg123-0.dll") == 0) {
++        name = "libmpg123.so";
++    }
++    return dlopen(name, RTLD_NOW);
++}
+diff --git a/src/platform/platform_posix.h b/src/platform/platform_posix.h
+index 2a7d26c..afc0d82 100644
+--- a/src/platform/platform_posix.h
++++ b/src/platform/platform_posix.h
+@@ -139,7 +139,11 @@ int  Mugen_GetLocaleInfoA(DWORD locale, DWORD type, char *buf, int size);
+ #define InterlockedExchangeAdd(p, v)   __atomic_fetch_add((p), (v), __ATOMIC_SEQ_CST)
+ 
+ /* ---- dynamic libraries ------------------------------------------------------------------------------------ */
+-#define LoadLibraryA(name)             dlopen((name), RTLD_NOW)
++/* P4b (D-020): Mugen_LoadLibraryA maps the one DLL the engine loads that has an Android counterpart ("libmpg123-0.dll", the
++ * MP3 decoder of the BGM plugin) to the shared library built from third_party/mpg123 and packaged next to libmugen.so;
++ * any other name goes to dlopen as written (the plugin .dll files of the original do not load). */
++void *Mugen_LoadLibraryA(const char *name);
++#define LoadLibraryA(name)             Mugen_LoadLibraryA(name)
+ #define GetProcAddress(lib, name)      dlsym((lib), (name))
+ #define FreeLibrary(lib)               dlclose(lib)
+ 
