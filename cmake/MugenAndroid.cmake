@@ -100,7 +100,38 @@ target_link_options(SDL12 PRIVATE ${MUGEN_ANDROID_LINK_FLAGS})
 set_target_properties(SDL12 PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_dependencies(SDL12 SDL2)   # libSDL2.so has to be in the APK next to it
 
-# TODO(P3b M2, D-003): SDL_mixer, SDL_ttf (+FreeType), SDL_gfx, libresample, libmpg123.
+# ---- P4a (D-003, D-019): SDL_mixer 1.2 and libresample, vendored by tools/vendor-p4a.sh ----------------------------------
+# SDL_mixer is the SDL 1.2 library (the engine passes it SDL 1.2 SDL_RWops/Mix_Chunk), so it is built here against the
+# sdl12-compat headers and links nothing but libSDL.so's symbols, resolved at run time like the engine's own. Only WAV/AIFF/VOC
+# and the music front end are compiled in: no MP3/Ogg/MIDI/MOD back end (the engine decodes MP3 itself with libmpg123, P4b).
+# Until tools/vendor-p4a.sh has been run (third_party/SDL_mixer and third_party/libresample absent) the build falls back to the
+# temporary stubs of mugen_d003_stubs.c, so the tree keeps building.
+set(MUGEN_AUDIO_REAL OFF)
+if(EXISTS "${_tp}/SDL_mixer/mixer.c" AND EXISTS "${_tp}/libresample/src/resample.c")
+  set(MUGEN_AUDIO_REAL ON)
+  add_library(SDL_mixer STATIC
+    "${_tp}/SDL_mixer/mixer.c" "${_tp}/SDL_mixer/music.c" "${_tp}/SDL_mixer/effects_internal.c"
+    "${_tp}/SDL_mixer/effect_position.c" "${_tp}/SDL_mixer/effect_stereoreverse.c"
+    "${_tp}/SDL_mixer/load_aiff.c" "${_tp}/SDL_mixer/load_voc.c")
+  target_include_directories(SDL_mixer PUBLIC "${_tp}/SDL_mixer")
+  target_include_directories(SDL_mixer PRIVATE "${_tp}/sdl12-compat/include/SDL")
+  target_compile_definitions(SDL_mixer PRIVATE _REENTRANT)
+  mugen_android_third_party(SDL_mixer)
+
+  # libresample 0.1.5 (mono, upstream). Its symbols are renamed up_resample_*: the engine-facing API of Elecbyte's
+  # libresample (mugen_resample.c, multi-channel, resample_init/reset) uses the original names.
+  add_library(libresample_up STATIC
+    "${_tp}/libresample/src/filterkit.c" "${_tp}/libresample/src/resample.c" "${_tp}/libresample/src/resamplesubs.c")
+  target_include_directories(libresample_up PRIVATE "${_tp}/libresample")
+  target_compile_definitions(libresample_up PRIVATE
+    resample_open=up_resample_open resample_process=up_resample_process resample_close=up_resample_close
+    resample_dup=up_resample_dup resample_get_filter_width=up_resample_get_filter_width)
+  mugen_android_third_party(libresample_up)
+else()
+  message(WARNING "P4a: third_party/SDL_mixer or third_party/libresample missing: run tools/vendor-p4a.sh; "
+                  "building with the temporary audio stubs (no sound).")
+endif()
+# TODO(P4b, D-003): libmpg123 (BGM). TODO(P4c, D-003): SDL_ttf (+FreeType), SDL_gfx zoomSurface.
 
 # Compile flags of every engine source (mugen_core, mugen_p3a, mugen_platform, libmugen.so). R2: no FMA contraction,
 # never -ffast-math. The original is a signed-char, non-strict-aliasing MSVC binary: char is unsigned on arm64 and clang
@@ -121,6 +152,17 @@ set(MUGEN_ANDROID_ENGINE_INCLUDES
   src/platform/stubs/SDL_ext
   "${_tp}/glew-1.5.4/include"
   "${_tp}/sdl12-compat/include/SDL")
+if(MUGEN_AUDIO_REAL)
+  # the real SDL_mixer.h (with Mix_QuerySpecEx) shadows the stub copy in SDL_ext (D-019)
+  list(INSERT MUGEN_ANDROID_ENGINE_INCLUDES 0 "${_tp}/SDL_mixer")
+  # the engine-facing libresample API on top of the upstream mono library (P4a, D-019)
+  add_library(mugen_resample STATIC android/app/src/main/cpp/mugen_resample.c)
+  target_include_directories(mugen_resample PRIVATE ${MUGEN_ANDROID_ENGINE_INCLUDES})
+  target_compile_definitions(mugen_resample PRIVATE MUGEN_PLATFORM_ANDROID=1)
+  target_compile_options(mugen_resample PRIVATE ${MUGEN_ANDROID_ENGINE_FLAGS} -Wall)
+  target_link_libraries(mugen_resample PUBLIC libresample_up)
+  set_target_properties(mugen_resample PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
 
 # ---- P3a: the platform layer (no SDL) --------------------------------------------------------------------------
 add_library(mugen_platform STATIC
@@ -191,6 +233,11 @@ target_compile_options(mugen PRIVATE ${MUGEN_ANDROID_ENGINE_FLAGS} -Wall)
 # loaded first by SDLActivity, and found by the compat library with dlopen. LINK_ONLY: no SDL headers leak into libmugen's files.
 target_link_libraries(mugen PRIVATE mugen_platform lua51 png12 minizip cgltf stb_image
   $<LINK_ONLY:SDL12> log android ${MUGEN_ZLIB})
+if(MUGEN_AUDIO_REAL)
+  # P4a: the real SDL_mixer and libresample; mugen_d003_stubs.c then leaves their functions out (D-019)
+  target_link_libraries(mugen PRIVATE SDL_mixer mugen_resample)
+  target_compile_definitions(mugen PRIVATE MUGEN_AUDIO_REAL=1)
+endif()
 add_dependencies(mugen SDL2 SDL12)
 target_link_options(mugen PRIVATE ${MUGEN_ANDROID_LINK_FLAGS})
 # REMOVER-NO-RELEASE (docs/android-port/05-diagnosticos-a-remover.md) item 1.

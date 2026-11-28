@@ -32,6 +32,7 @@ static void Once(int *flag, const char *what)
     }
 }
 
+#ifndef MUGEN_AUDIO_REAL   /* P4a (D-019): the real SDL_mixer replaces these once tools/vendor-p4a.sh has run */
 /* ---- SDL_mixer ---------------------------------------------------------------------------------------------- */
 static int g_freq = 44100, g_channels = 2, g_chunk = 4096, g_mixChannels;
 static Uint16 g_format = AUDIO_S16LSB;
@@ -140,6 +141,8 @@ void Mix_HookMusic(void (*mix_func)(void *udata, Uint8 *stream, int len), void *
 
 void Mix_HookMusicFinished(void (*music_finished)(void)) { (void)music_finished; }
 
+#endif /* !MUGEN_AUDIO_REAL */
+
 /* ---- SDL_ttf ------------------------------------------------------------------------------------------------ */
 static int g_flagTtf;
 
@@ -196,6 +199,7 @@ SDL_Surface *zoomSurface(SDL_Surface *src, double zoomx, double zoomy, int smoot
     return NULL;
 }
 
+#ifndef MUGEN_AUDIO_REAL   /* P4a (D-019): mugen_resample.c replaces these */
 /* ---- libresample -------------------------------------------------------------------------------------------- */
 int resample_init(int low_quality, int high_quality) { (void)low_quality; (void)high_quality; return 1; }
 void resample_deinit(void) { }
@@ -226,3 +230,4 @@ int resample_process(void *handle, double factor, float *in, int in_len, int las
 
 void resample_reset(void *handle) { (void)handle; }
 void resample_close(void *handle) { (void)handle; }
+#endif /* !MUGEN_AUDIO_REAL */
