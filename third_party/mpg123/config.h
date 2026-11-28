@@ -1,0 +1,29 @@
+/* hand-written config.h of the Android build of libmpg123 (generic C decoder, float core, no network/modules) */
+#define ACCURATE_ROUNDING 1
+#define FIFO 1
+#define FRAME_INDEX 1
+#define GAPLESS 1
+#define HAVE_ATOLL 1
+#define HAVE_DIRENT_H 1
+#define HAVE_INTTYPES_H 1
+#define HAVE_LIBM 1
+#define HAVE_SIGNAL_H 1
+#define HAVE_STDINT_H 1
+#define HAVE_STDIO_H 1
+#define HAVE_STDLIB_H 1
+#define HAVE_STRERROR 1
+#define HAVE_STRING_H 1
+#define HAVE_SYS_PARAM_H 1
+#define HAVE_SYS_STAT_H 1
+#define HAVE_SYS_TYPES_H 1
+#define HAVE_UNISTD_H 1
+#define IEEE_FLOAT 1
+#define INDEX_SIZE 1000
+#define PACKAGE "mpg123"
+#define PACKAGE_NAME "mpg123"
+#define PACKAGE_STRING "mpg123 1.33.7"
+#define PACKAGE_VERSION "1.33.7"
+#define SIZEOF_OFF_T 8
+#define STDC_HEADERS 1
+#define USE_NEW_HUFFTABLE 1
+#define VERSION "1.33.7"

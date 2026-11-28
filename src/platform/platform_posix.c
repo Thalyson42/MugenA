@@ -139,3 +139,20 @@ int Mugen_GetLocaleInfoA(DWORD locale, DWORD type, char *buf, int size)
     }
     return 0;
 }
+
+/* P4b (D-020): see platform_posix.h. The name is compared without its directory and ignoring case. */
+void *Mugen_LoadLibraryA(const char *name)
+{
+    const char *base = name;
+    const char *p;
+
+    for (p = name; *p != '\0'; p++) {
+        if (*p == '/' || *p == '\\') {
+            base = p + 1;
+        }
+    }
+    if (strcasecmp(base, "libmpg123-0.dll") == 0) {
+        name = "libmpg123.so";
+    }
+    return dlopen(name, RTLD_NOW);
+}

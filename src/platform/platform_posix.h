@@ -139,7 +139,11 @@ int  Mugen_GetLocaleInfoA(DWORD locale, DWORD type, char *buf, int size);
 #define InterlockedExchangeAdd(p, v)   __atomic_fetch_add((p), (v), __ATOMIC_SEQ_CST)
 
 /* ---- dynamic libraries ------------------------------------------------------------------------------------ */
-#define LoadLibraryA(name)             dlopen((name), RTLD_NOW)
+/* P4b (D-020): Mugen_LoadLibraryA maps the one DLL the engine loads that has an Android counterpart ("libmpg123-0.dll", the
+ * MP3 decoder of the BGM plugin) to the shared library built from third_party/mpg123 and packaged next to libmugen.so;
+ * any other name goes to dlopen as written (the plugin .dll files of the original do not load). */
+void *Mugen_LoadLibraryA(const char *name);
+#define LoadLibraryA(name)             Mugen_LoadLibraryA(name)
 #define GetProcAddress(lib, name)      dlsym((lib), (name))
 #define FreeLibrary(lib)               dlclose(lib)
 
