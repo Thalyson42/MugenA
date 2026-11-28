@@ -1,0 +1,45 @@
+diff --git a/third_party/SDL_mixer/SDL_mixer.h b/third_party/SDL_mixer/SDL_mixer.h
+index d24bd4a..3e22d22 100644
+--- a/third_party/SDL_mixer/SDL_mixer.h
++++ b/third_party/SDL_mixer/SDL_mixer.h
+@@ -144,6 +144,8 @@ extern DECLSPEC int SDLCALL Mix_AllocateChannels(int numchans);
+    This function returns 1 if the audio has been opened, 0 otherwise.
+  */
+ extern DECLSPEC int SDLCALL Mix_QuerySpec(int *frequency,Uint16 *format,int *channels);
++/* MUGEN-UNLEASHED PATCH: as Mix_QuerySpec, plus the chunk size (Elecbyte's SDL_mixer) */
++extern DECLSPEC int SDLCALL Mix_QuerySpecEx(int *frequency,Uint16 *format,int *channels,int *chunksize);
+ 
+ /* Load a wave file or a music (.mod .s3m .it .xm) file */
+ extern DECLSPEC Mix_Chunk * SDLCALL Mix_LoadWAV_RW(SDL_RWops *src, int freesrc);
+diff --git a/third_party/SDL_mixer/mixer.c b/third_party/SDL_mixer/mixer.c
+index eac23ea..3c9814b 100644
+--- a/third_party/SDL_mixer/mixer.c
++++ b/third_party/SDL_mixer/mixer.c
+@@ -546,6 +546,27 @@ int Mix_QuerySpec(int *frequency, Uint16 *format, int *channels)
+ 	return(audio_opened);
+ }
+ 
++/* MUGEN-UNLEASHED PATCH: Elecbyte's modified SDL_mixer also reports the chunk size (samples per mixing
++ * callback); the engine calls this in Sound_Init (third_party/sdk/def/SDL_mixer.def). */
++int Mix_QuerySpecEx(int *frequency, Uint16 *format, int *channels, int *chunksize)
++{
++	if ( audio_opened ) {
++		if ( frequency ) {
++			*frequency = mixer.freq;
++		}
++		if ( format ) {
++			*format = mixer.format;
++		}
++		if ( channels ) {
++			*channels = mixer.channels;
++		}
++		if ( chunksize ) {
++			*chunksize = mixer.samples;
++		}
++	}
++	return(audio_opened);
++}
++
+ 
+ /*
+  * !!! FIXME: Ideally, we want a Mix_LoadSample_RW(), which will handle the

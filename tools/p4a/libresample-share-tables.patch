@@ -1,0 +1,95 @@
+diff --git a/third_party/libresample/src/resample.c b/third_party/libresample/src/resample.c
+index 0ba3ca9..ec70696 100644
+--- a/third_party/libresample/src/resample.c
++++ b/third_party/libresample/src/resample.c
+@@ -26,6 +26,13 @@
+ #include <stdio.h>
+ #include <math.h>
+ #include <string.h>
++#include <pthread.h>   /* MUGEN-UNLEASHED PATCH */
++
++/* MUGEN-UNLEASHED PATCH: the filter tables are built once per quality and shared by every handle (Elecbyte's
++ * resample_init semantics); upstream rebuilt them (tens of thousands of Bessel evaluations) on every resample_open. */
++static float *g_sharedImp[2];
++static float *g_sharedImpD[2];
++static pthread_mutex_t g_sharedLock = PTHREAD_MUTEX_INITIALIZER;
+ 
+ typedef struct {
+    float  *Imp;
+@@ -57,10 +64,8 @@ void *resample_dup(const void *	handle)
+    hp->LpScl = cpy->LpScl;
+    hp->Nwing = cpy->Nwing;
+ 
+-   hp->Imp = (float *)malloc(hp->Nwing * sizeof(float));
+-   memcpy(hp->Imp, cpy->Imp, hp->Nwing * sizeof(float));
+-   hp->ImpD = (float *)malloc(hp->Nwing * sizeof(float));
+-   memcpy(hp->ImpD, cpy->ImpD, hp->Nwing * sizeof(float));
++   hp->Imp = cpy->Imp;      /* shared tables (MUGEN-UNLEASHED PATCH) */
++   hp->ImpD = cpy->ImpD;
+ 
+    hp->Xoff = cpy->Xoff;
+    hp->XSize = cpy->XSize;
+@@ -109,27 +114,38 @@ void *resample_open(int highQuality, double minFactor, double maxFactor)
+    hp->LpScl = 1.0;
+    hp->Nwing = Npc*(hp->Nmult-1)/2; /* # of filter coeffs in right wing */
+ 
+-   Rolloff = 0.90;
+-   Beta = 6;
++   /* MUGEN-UNLEASHED PATCH: build the tables once per quality, then share them. */
++   pthread_mutex_lock(&g_sharedLock);
++   if (g_sharedImp[highQuality ? 1 : 0] == NULL) {
++      Rolloff = 0.90;
++      Beta = 6;
+ 
+-   Imp64 = (double *)malloc(hp->Nwing * sizeof(double));
++      Imp64 = (double *)malloc(hp->Nwing * sizeof(double));
+ 
+-   lrsLpFilter(Imp64, hp->Nwing, 0.5*Rolloff, Beta, Npc);
++      lrsLpFilter(Imp64, hp->Nwing, 0.5*Rolloff, Beta, Npc);
+ 
+-   hp->Imp = (float *)malloc(hp->Nwing * sizeof(float));
+-   hp->ImpD = (float *)malloc(hp->Nwing * sizeof(float));
+-   for(i=0; i<hp->Nwing; i++)
+-      hp->Imp[i] = Imp64[i];
++      {
++         float *imp = (float *)malloc(hp->Nwing * sizeof(float));
++         float *impd = (float *)malloc(hp->Nwing * sizeof(float));
++         for(i=0; i<hp->Nwing; i++)
++            imp[i] = Imp64[i];
+ 
+-   /* Storing deltas in ImpD makes linear interpolation
+-      of the filter coefficients faster */
+-   for (i=0; i<hp->Nwing-1; i++)
+-      hp->ImpD[i] = hp->Imp[i+1] - hp->Imp[i];
++         /* Storing deltas in ImpD makes linear interpolation
++            of the filter coefficients faster */
++         for (i=0; i<hp->Nwing-1; i++)
++            impd[i] = imp[i+1] - imp[i];
+ 
+-   /* Last coeff. not interpolated */
+-   hp->ImpD[hp->Nwing-1] = - hp->Imp[hp->Nwing-1];
++         /* Last coeff. not interpolated */
++         impd[hp->Nwing-1] = - imp[hp->Nwing-1];
+ 
+-   free(Imp64);
++         g_sharedImpD[highQuality ? 1 : 0] = impd;
++         g_sharedImp[highQuality ? 1 : 0] = imp;
++      }
++      free(Imp64);
++   }
++   hp->Imp = g_sharedImp[highQuality ? 1 : 0];
++   hp->ImpD = g_sharedImpD[highQuality ? 1 : 0];
++   pthread_mutex_unlock(&g_sharedLock);
+ 
+    /* Calc reach of LP filter wing (plus some creeping room) */
+    Xoff_min = ((hp->Nmult+1)/2.0) * MAX(1.0, 1.0/minFactor) + 10;
+@@ -340,8 +356,7 @@ void resample_close(void *handle)
+    rsdata *hp = (rsdata *)handle;
+    free(hp->X);
+    free(hp->Y);
+-   free(hp->Imp);
+-   free(hp->ImpD);
++   /* Imp / ImpD are shared (MUGEN-UNLEASHED PATCH) */
+    free(hp);
+ }
+ 

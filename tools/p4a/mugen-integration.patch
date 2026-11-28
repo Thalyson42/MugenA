@@ -1,0 +1,289 @@
+diff --git a/android/app/src/main/cpp/mugen_d003_stubs.c b/android/app/src/main/cpp/mugen_d003_stubs.c
+index c1223c7..95a9260 100644
+--- a/android/app/src/main/cpp/mugen_d003_stubs.c
++++ b/android/app/src/main/cpp/mugen_d003_stubs.c
+@@ -32,6 +32,7 @@ static void Once(int *flag, const char *what)
+     }
+ }
+ 
++#ifndef MUGEN_AUDIO_REAL   /* P4a (D-019): the real SDL_mixer replaces these once tools/vendor-p4a.sh has run */
+ /* ---- SDL_mixer ---------------------------------------------------------------------------------------------- */
+ static int g_freq = 44100, g_channels = 2, g_chunk = 4096, g_mixChannels;
+ static Uint16 g_format = AUDIO_S16LSB;
+@@ -140,6 +141,8 @@ void Mix_HookMusic(void (*mix_func)(void *udata, Uint8 *stream, int len), void *
+ 
+ void Mix_HookMusicFinished(void (*music_finished)(void)) { (void)music_finished; }
+ 
++#endif /* !MUGEN_AUDIO_REAL */
++
+ /* ---- SDL_ttf ------------------------------------------------------------------------------------------------ */
+ static int g_flagTtf;
+ 
+@@ -196,6 +199,7 @@ SDL_Surface *zoomSurface(SDL_Surface *src, double zoomx, double zoomy, int smoot
+     return NULL;
+ }
+ 
++#ifndef MUGEN_AUDIO_REAL   /* P4a (D-019): mugen_resample.c replaces these */
+ /* ---- libresample -------------------------------------------------------------------------------------------- */
+ int resample_init(int low_quality, int high_quality) { (void)low_quality; (void)high_quality; return 1; }
+ void resample_deinit(void) { }
+@@ -226,3 +230,4 @@ int resample_process(void *handle, double factor, float *in, int in_len, int las
+ 
+ void resample_reset(void *handle) { (void)handle; }
+ void resample_close(void *handle) { (void)handle; }
++#endif /* !MUGEN_AUDIO_REAL */
+diff --git a/android/app/src/main/cpp/mugen_resample.c b/android/app/src/main/cpp/mugen_resample.c
+new file mode 100644
+index 0000000..a19e86f
+--- /dev/null
++++ b/android/app/src/main/cpp/mugen_resample.c
+@@ -0,0 +1,175 @@
++/*
++ * P4a (D-003, D-019): the engine-facing libresample API on Android.
++ *
++ * The libresample.dll of M.U.G.E.N 1.1 is libresample 0.1.3 modified by Elecbyte: interleaved multi-channel buffers
++ * (resample_open takes a channel count), resample_init/resample_deinit for shared filter tables and resample_reset
++ * (third_party/sdk/include/libresample.h; the prototypes come from that header, so the compiler checks them).
++ * The upstream library we can vendor (third_party/libresample, 0.1.5) is mono and has none of the three. This file
++ * implements the Elecbyte API on top of it:
++ *   - one upstream mono resampler per channel; the input is split into the channels, each goes through its own
++ *     resampler with the same factor, and the outputs are interleaved again. The channels stay in lockstep: same input
++ *     length, same factor, so every channel consumes and produces the same number of frames;
++ *   - resample_init/deinit are no-ops: the upstream filter tables are shared by all handles and built on the first
++ *     resample_open of each quality (MUGEN-UNLEASHED PATCH in third_party/libresample/src/resample.c);
++ *   - resample_reset closes and reopens the per-channel resamplers.
++ * The upstream symbols are renamed up_resample_* at build time (-Dresample_open=up_resample_open ... in
++ * cmake/MugenAndroid.cmake), because they would collide with the names of this API.
++ */
++#include <stdlib.h>
++#include <string.h>
++
++#include "platform/platform.h"   /* __cdecl for the header below */
++#include <libresample.h>
++
++void *up_resample_open(int highQuality, double minFactor, double maxFactor);
++int up_resample_process(void *handle, double factor, float *inBuffer, int inBufferLen, int lastFlag, int *inBufferUsed,
++                        float *outBuffer, int outBufferLen);
++void up_resample_close(void *handle);
++
++#define MUGEN_RS_MAX_CHANNELS 8
++
++typedef struct MugenResampler {
++    int channels;
++    int high_quality;
++    double min_factor;
++    double max_factor;
++    void *mono[MUGEN_RS_MAX_CHANNELS];
++    float *in_split;    /* one channel of the input */
++    float *out_split;   /* one channel of the output */
++    int in_cap;
++    int out_cap;
++} MugenResampler;
++
++static int Rs_OpenMono(MugenResampler *rs)
++{
++    int c;
++
++    for (c = 0; c < rs->channels; c++) {
++        rs->mono[c] = up_resample_open(rs->high_quality, rs->min_factor, rs->max_factor);
++        if (rs->mono[c] == NULL) {
++            while (c-- > 0) {
++                up_resample_close(rs->mono[c]);
++                rs->mono[c] = NULL;
++            }
++            return 0;
++        }
++    }
++    return 1;
++}
++
++static void Rs_CloseMono(MugenResampler *rs)
++{
++    int c;
++
++    for (c = 0; c < rs->channels; c++) {
++        if (rs->mono[c] != NULL) {
++            up_resample_close(rs->mono[c]);
++            rs->mono[c] = NULL;
++        }
++    }
++}
++
++int resample_init(int low_quality, int high_quality)
++{
++    (void)low_quality;
++    (void)high_quality;
++    return 1;
++}
++
++void resample_deinit(void)
++{
++}
++
++void *resample_open(int quality, int channels, double min_factor, double max_factor)
++{
++    MugenResampler *rs;
++
++    if (channels < 1 || channels > MUGEN_RS_MAX_CHANNELS) {
++        return NULL;
++    }
++    rs = calloc(1, sizeof(*rs));
++    if (rs == NULL) {
++        return NULL;
++    }
++    rs->channels = channels;
++    rs->high_quality = quality >= 1;
++    rs->min_factor = min_factor;
++    rs->max_factor = max_factor;
++    if (!Rs_OpenMono(rs)) {
++        free(rs);
++        return NULL;
++    }
++    return rs;
++}
++
++int resample_process(void *handle, double factor, float *in, int in_len, int last, int *in_used, float *out, int out_len)
++{
++    MugenResampler *rs = handle;
++    int used = 0;
++    int produced = 0;
++    int c, i, n = rs->channels;
++
++    if (n == 1) {
++        return up_resample_process(rs->mono[0], factor, in, in_len, last, in_used, out, out_len);
++    }
++    if (in_len > rs->in_cap) {
++        float *p = realloc(rs->in_split, (size_t)in_len * sizeof(float));
++        if (p == NULL) {
++            return -1;
++        }
++        rs->in_split = p;
++        rs->in_cap = in_len;
++    }
++    if (out_len > rs->out_cap) {
++        float *p = realloc(rs->out_split, (size_t)out_len * sizeof(float));
++        if (p == NULL) {
++            return -1;
++        }
++        rs->out_split = p;
++        rs->out_cap = out_len;
++    }
++    for (c = 0; c < n; c++) {
++        int u = 0;
++        int r;
++
++        for (i = 0; i < in_len; i++) {
++            rs->in_split[i] = in[(size_t)i * n + c];
++        }
++        r = up_resample_process(rs->mono[c], factor, rs->in_split, in_len, last, &u, rs->out_split, out_len);
++        if (r < 0) {
++            return r;
++        }
++        for (i = 0; i < r; i++) {
++            out[(size_t)i * n + c] = rs->out_split[i];
++        }
++        if (c == 0) {
++            used = u;
++            produced = r;
++        }
++    }
++    if (in_used != NULL) {
++        *in_used = used;
++    }
++    return produced;
++}
++
++void resample_reset(void *handle)
++{
++    MugenResampler *rs = handle;
++
++    Rs_CloseMono(rs);
++    Rs_OpenMono(rs);
++}
++
++void resample_close(void *handle)
++{
++    MugenResampler *rs = handle;
++
++    if (rs == NULL) {
++        return;
++    }
++    Rs_CloseMono(rs);
++    free(rs->in_split);
++    free(rs->out_split);
++    free(rs);
++}
+diff --git a/cmake/MugenAndroid.cmake b/cmake/MugenAndroid.cmake
+index 713124f..4337f76 100644
+--- a/cmake/MugenAndroid.cmake
++++ b/cmake/MugenAndroid.cmake
+@@ -100,7 +100,38 @@ target_link_options(SDL12 PRIVATE ${MUGEN_ANDROID_LINK_FLAGS})
+ set_target_properties(SDL12 PROPERTIES POSITION_INDEPENDENT_CODE ON)
+ add_dependencies(SDL12 SDL2)   # libSDL2.so has to be in the APK next to it
+ 
+-# TODO(P3b M2, D-003): SDL_mixer, SDL_ttf (+FreeType), SDL_gfx, libresample, libmpg123.
++# ---- P4a (D-003, D-019): SDL_mixer 1.2 and libresample, vendored by tools/vendor-p4a.sh ----------------------------------
++# SDL_mixer is the SDL 1.2 library (the engine passes it SDL 1.2 SDL_RWops/Mix_Chunk), so it is built here against the
++# sdl12-compat headers and links nothing but libSDL.so's symbols, resolved at run time like the engine's own. Only WAV/AIFF/VOC
++# and the music front end are compiled in: no MP3/Ogg/MIDI/MOD back end (the engine decodes MP3 itself with libmpg123, P4b).
++# Until tools/vendor-p4a.sh has been run (third_party/SDL_mixer and third_party/libresample absent) the build falls back to the
++# temporary stubs of mugen_d003_stubs.c, so the tree keeps building.
++set(MUGEN_AUDIO_REAL OFF)
++if(EXISTS "${_tp}/SDL_mixer/mixer.c" AND EXISTS "${_tp}/libresample/src/resample.c")
++  set(MUGEN_AUDIO_REAL ON)
++  add_library(SDL_mixer STATIC
++    "${_tp}/SDL_mixer/mixer.c" "${_tp}/SDL_mixer/music.c" "${_tp}/SDL_mixer/effects_internal.c"
++    "${_tp}/SDL_mixer/effect_position.c" "${_tp}/SDL_mixer/effect_stereoreverse.c"
++    "${_tp}/SDL_mixer/load_aiff.c" "${_tp}/SDL_mixer/load_voc.c")
++  target_include_directories(SDL_mixer PUBLIC "${_tp}/SDL_mixer")
++  target_include_directories(SDL_mixer PRIVATE "${_tp}/sdl12-compat/include/SDL")
++  target_compile_definitions(SDL_mixer PRIVATE _REENTRANT)
++  mugen_android_third_party(SDL_mixer)
++
++  # libresample 0.1.5 (mono, upstream). Its symbols are renamed up_resample_*: the engine-facing API of Elecbyte's
++  # libresample (mugen_resample.c, multi-channel, resample_init/reset) uses the original names.
++  add_library(libresample_up STATIC
++    "${_tp}/libresample/src/filterkit.c" "${_tp}/libresample/src/resample.c" "${_tp}/libresample/src/resamplesubs.c")
++  target_include_directories(libresample_up PRIVATE "${_tp}/libresample")
++  target_compile_definitions(libresample_up PRIVATE
++    resample_open=up_resample_open resample_process=up_resample_process resample_close=up_resample_close
++    resample_dup=up_resample_dup resample_get_filter_width=up_resample_get_filter_width)
++  mugen_android_third_party(libresample_up)
++else()
++  message(WARNING "P4a: third_party/SDL_mixer or third_party/libresample missing: run tools/vendor-p4a.sh; "
++                  "building with the temporary audio stubs (no sound).")
++endif()
++# TODO(P4b, D-003): libmpg123 (BGM). TODO(P4c, D-003): SDL_ttf (+FreeType), SDL_gfx zoomSurface.
+ 
+ # Compile flags of every engine source (mugen_core, mugen_p3a, mugen_platform, libmugen.so). R2: no FMA contraction,
+ # never -ffast-math. The original is a signed-char, non-strict-aliasing MSVC binary: char is unsigned on arm64 and clang
+@@ -121,6 +152,17 @@ set(MUGEN_ANDROID_ENGINE_INCLUDES
+   src/platform/stubs/SDL_ext
+   "${_tp}/glew-1.5.4/include"
+   "${_tp}/sdl12-compat/include/SDL")
++if(MUGEN_AUDIO_REAL)
++  # the real SDL_mixer.h (with Mix_QuerySpecEx) shadows the stub copy in SDL_ext (D-019)
++  list(INSERT MUGEN_ANDROID_ENGINE_INCLUDES 0 "${_tp}/SDL_mixer")
++  # the engine-facing libresample API on top of the upstream mono library (P4a, D-019)
++  add_library(mugen_resample STATIC android/app/src/main/cpp/mugen_resample.c)
++  target_include_directories(mugen_resample PRIVATE ${MUGEN_ANDROID_ENGINE_INCLUDES})
++  target_compile_definitions(mugen_resample PRIVATE MUGEN_PLATFORM_ANDROID=1)
++  target_compile_options(mugen_resample PRIVATE ${MUGEN_ANDROID_ENGINE_FLAGS} -Wall)
++  target_link_libraries(mugen_resample PUBLIC libresample_up)
++  set_target_properties(mugen_resample PROPERTIES POSITION_INDEPENDENT_CODE ON)
++endif()
+ 
+ # ---- P3a: the platform layer (no SDL) --------------------------------------------------------------------------
+ add_library(mugen_platform STATIC
+@@ -191,6 +233,11 @@ target_compile_options(mugen PRIVATE ${MUGEN_ANDROID_ENGINE_FLAGS} -Wall)
+ # loaded first by SDLActivity, and found by the compat library with dlopen. LINK_ONLY: no SDL headers leak into libmugen's files.
+ target_link_libraries(mugen PRIVATE mugen_platform lua51 png12 minizip cgltf stb_image
+   $<LINK_ONLY:SDL12> log android ${MUGEN_ZLIB})
++if(MUGEN_AUDIO_REAL)
++  # P4a: the real SDL_mixer and libresample; mugen_d003_stubs.c then leaves their functions out (D-019)
++  target_link_libraries(mugen PRIVATE SDL_mixer mugen_resample)
++  target_compile_definitions(mugen PRIVATE MUGEN_AUDIO_REAL=1)
++endif()
+ add_dependencies(mugen SDL2 SDL12)
+ target_link_options(mugen PRIVATE ${MUGEN_ANDROID_LINK_FLAGS})
+ # REMOVER-NO-RELEASE (docs/android-port/05-diagnosticos-a-remover.md) item 1.
